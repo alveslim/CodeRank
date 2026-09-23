@@ -1,6 +1,7 @@
 import flet as ft
 from src.ui.views.editor import tela_editor
 from src.ui.views.desafios import tela_desafios
+from src.ui.views.ranking import tela_ranking
 from src.ui.components.navbar import criar_navbar
 
 def main_ui(page: ft.Page):
@@ -13,7 +14,9 @@ def main_ui(page: ft.Page):
         if rota == 'desafios':
             conteudo_principal.content = tela_desafios(page, navegar)
         elif rota == 'editor':
-                    conteudo_principal.content = tela_editor(page)
+            conteudo_principal.content = tela_editor(page)
+        elif rota == 'ranking':
+            conteudo_principal.content = tela_ranking(page, navegar)
         page.update()
 
     page.appbar = criar_navbar(page, navegar)
