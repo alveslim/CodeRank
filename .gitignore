@@ -1,0 +1,27 @@
+# 1. Variáveis de Ambiente e Segredos (MUITO IMPORTANTE)
+.env
+
+# 2. Ambientes Virtuais Python (São muito pesados, o GitHub não precisa disto)
+.venv/
+venv/
+env/
+
+# 3. Ficheiros de Base de Dados Local (O nosso antigo SQLite)
+*.db
+*.sqlite3
+
+# 4. Ficheiros compilados e lixo do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 5. Ficheiros de configuração do Editor de Código e SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 6. Relatórios gerados localmente (para não encher o repositório com Excels de teste)
+*.xlsx
+*.csv
+*.pdf
