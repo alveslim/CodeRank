@@ -5,7 +5,7 @@ def tela_editor(page: ft.Page):
         multiline=True,
         min_lines=20,
         text_style=ft.TextStyle(font_family="monospace", size=14),
-        hint_text="def two_sum(nums, target):\n    # Escreva seu código Python aqui...",
+        hint_text="#include <stdio.h> \n       int main(void) {\n              printf('Hello World!');\n       return 0;\n       }\n       # Escreva seu código aqui...",
         expand=True,
         bgcolor=ft.Colors.GREY_900,
         border_color=ft.Colors.OUTLINE
