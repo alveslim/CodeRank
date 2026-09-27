@@ -30,7 +30,7 @@ def tela_login(page: ft.Page, navegar):
             campo_email,
             campo_senha,
             botao_entrar,
-            ft.TextButton("Ainda não tem conta? Registre-se", on_click=lambda e: print("Ir para registro"))
+            ft.TextButton("Ainda não tem conta? Registre-se", on_click=lambda e: navegar("cadastro"))
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, alignment=ft.MainAxisAlignment.CENTER),
         expand=True,
         alignment=ft.Alignment.CENTER

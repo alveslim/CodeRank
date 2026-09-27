@@ -4,6 +4,7 @@ from src.ui.views.desafios import tela_desafios
 from src.ui.views.ranking import tela_ranking
 from src.ui.views.perfil import tela_perfil
 from src.ui.views.login import tela_login
+from src.ui.views.cadastro import tela_cadastro
 from src.ui.components.navbar import criar_navbar
 
 def main_ui(page: ft.Page):
@@ -17,6 +18,8 @@ def main_ui(page: ft.Page):
         if rota == 'login':
             page.appbar = None
             conteudo_principal.content = tela_login(page, navegar)
+        if rota == 'cadastro':
+            conteudo_principal.content =  tela_cadastro(page, navegar)
         else:
             page.appbar = barra_navegacao
             if rota == 'desafios':
