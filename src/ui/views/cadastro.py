@@ -5,8 +5,6 @@ import requests
 def tela_cadastro(page: ft.Page, navegar):
     campo_email = ft.TextField(label="E-mail", width=350, bgcolor=ft.Colors.GREEN_900)
     campo_senha = ft.TextField(label="Senha", password=True, can_reveal_password=True, width=350, bgcolor=ft.Colors.GREEN_900)
-    rua = ft.TextField(label="Rua", width=350, bgcolor=ft.Colors.GREEN_900, read_only=True)
-    bairro = ft.TextField(label="Bairro", width=350, bgcolor=ft.Colors.GREEN_900, read_only=True)
     cep = ft.TextField(label="Digite seu Cep", width=350, bgcolor=ft.Colors.GREEN_900, max_length=9)
     cidade = ft.TextField(label="Cidade", width=350, bgcolor=ft.Colors.GREEN_900, read_only=True)
     feedback_cep = ft.Text(value="", color=ft.Colors.RED)
@@ -28,18 +26,15 @@ def tela_cadastro(page: ft.Page, navegar):
 
         if dados_endereco:
             # Preenche os campos se encontrar
-            rua.value = dados_endereco.get("logradouro", "")
-            bairro.value = dados_endereco.get("bairro", "")
             cidade.value = f"{dados_endereco.get('localidade', '')} - {dados_endereco.get('uf', '')}"
             feedback_cep.value = "" # Limpa a mensagem de busca
         else:
-            rua.value = ""
-            bairro.value = ""
             cidade.value = ""
             feedback_cep.value = "Código postal inválido ou não encontrado."
             feedback_cep.color = ft.Colors.RED
 
         page.update() # Atualiza o ecrã com os novos valores
+    cep.on_blur = validar_cep
 
     botao_criarConta = ft.Container(
         content=ft.Text("Criar conta", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
@@ -61,10 +56,7 @@ def tela_cadastro(page: ft.Page, navegar):
             campo_email,
             campo_senha,
             cep,
-            feedback_cep,
-            rua,          
-            bairro,       
-            cidade,
+            feedback_cep,     
             cidade,
             botao_criarConta,
             ft.TextButton("Já possui uma conta?", on_click=lambda e: navegar("login"))],
