@@ -4,6 +4,7 @@ from src.ui.views.desafios import tela_desafios
 from src.ui.views.ranking import tela_ranking
 from src.ui.views.perfil import tela_perfil
 from src.ui.views.login import tela_login
+from src.ui.views.lobby_grupos import tela_grupos
 from src.ui.views.cadastro import tela_cadastro
 from src.ui.components.navbar import criar_navbar
 
@@ -27,6 +28,8 @@ def main_ui(page: ft.Page):
                 conteudo_principal.content = tela_desafios(page, navegar)
             elif rota == 'editor':
                 conteudo_principal.content = tela_editor(page)
+            elif rota == 'lobby_grupos':
+                conteudo_principal.content = tela_grupos(page, navegar)
             elif rota == 'ranking':
                 conteudo_principal.content = tela_ranking(page, navegar)
             elif rota == "perfil":
