@@ -18,7 +18,8 @@ def main_ui(page: ft.Page):
         if rota == 'login':
             page.appbar = None
             conteudo_principal.content = tela_login(page, navegar)
-        if rota == 'cadastro':
+        elif rota == 'cadastro':
+            page.appbar = None
             conteudo_principal.content =  tela_cadastro(page, navegar)
         else:
             page.appbar = barra_navegacao
