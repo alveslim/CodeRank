@@ -1,6 +1,13 @@
 import flet as ft
 
 def tela_perfil(page: ft.Page, navegar):
+    # Simulando variáveis que viriam do seu banco de dados (Supabase)
+    cidade_usuario = "Manaus"
+    uf_usuario = "AM"
+    nome_usuario = "Flávio Alves"
+    curso_usuario = "Engenharia de Software"
+    faculdade = "FAMETRO"
+
     # Estatísticas principais
     linha_estatisticas = ft.Row([
         ft.Column([ft.Text("1100", size=24, weight=ft.FontWeight.BOLD), ft.Text("Pontos", color=ft.Colors.GREY_400)], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
@@ -9,6 +16,9 @@ def tela_perfil(page: ft.Page, navegar):
         ft.VerticalDivider(width=40, color=ft.Colors.OUTLINE),
         ft.Column([ft.Text("Python", size=24, weight=ft.FontWeight.BOLD), ft.Text("Linguagem", color=ft.Colors.GREY_400)], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
     ], alignment=ft.MainAxisAlignment.CENTER)
+    
+    def deslogar(e):
+        navegar("login")
 
     # Botão para terminar sessão
     botao_sair = ft.Container(
@@ -17,7 +27,7 @@ def tela_perfil(page: ft.Page, navegar):
         padding=10,
         border_radius=5,
         ink=True,
-        on_click=lambda e: print("Ação: Sair da conta")
+        on_click=deslogar
     )
 
     return ft.Container(
@@ -33,8 +43,10 @@ def tela_perfil(page: ft.Page, navegar):
                     bgcolor=ft.Colors.BLUE_700
                 ),
                 ft.Column([
-                    ft.Text("Flávio Alves", size=24, weight=ft.FontWeight.BOLD),
-                    ft.Text("Engenharia de Software | FAMETRO", color=ft.Colors.GREY_400, size=16),
+                    ft.Text(f"{nome_usuario}", size=24, weight=ft.FontWeight.BOLD),
+                    # Usando f-strings para interpolar as variáveis
+                    ft.Text(f"{curso_usuario} | {faculdade}", color=ft.Colors.GREY_400, size=16),
+                    ft.Text(f"{cidade_usuario} - {uf_usuario}", color=ft.Colors.GREY_400, size=16),
                 ], spacing=2)
             ], spacing=20, alignment=ft.MainAxisAlignment.START),
             
@@ -42,6 +54,7 @@ def tela_perfil(page: ft.Page, navegar):
             linha_estatisticas,
             ft.Divider(height=40, color=ft.Colors.OUTLINE),
             
+            # Removido o on_click inválido da Row
             ft.Row([botao_sair], alignment=ft.MainAxisAlignment.START)
         ]),
         padding=20,

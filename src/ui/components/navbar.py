@@ -8,6 +8,7 @@ def criar_navbar(page: ft.Page, navegar):
         center_title=False,
         bgcolor=ft.Colors.GREY_900,
         actions=[
+            ft.TextButton("Grupos", icon=ft.Icons.GROUP_ADD, on_click=lambda e: navegar("Grupos")),
             ft.TextButton("Desafios", icon=ft.Icons.LIST_ALT, on_click=lambda e: navegar("desafios")),
             ft.TextButton("Ranking", icon=ft.Icons.LEADERBOARD, on_click=lambda e: navegar("ranking")),
             ft.IconButton(ft.Icons.PERSON, tooltip="Perfil", on_click=lambda e: navegar("perfil")),
