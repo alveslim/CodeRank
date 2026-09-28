@@ -1,0 +1,36 @@
+services:
+  python-sandbox:
+    build:
+      context: .
+      dockerfile: sandbox-images/Dockerfile.python
+    image: coderank-python:latest
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 64
+    stdin_open: true
+
+  java-sandbox:
+    build:
+      context: .
+      dockerfile: sandbox-images/Dockerfile.java
+    image: coderank-java:latest
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+    stdin_open: true

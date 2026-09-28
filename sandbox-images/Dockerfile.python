@@ -1,0 +1,15 @@
+FROM python:3.13-alpine3.22
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN addgroup -S sandbox \
+    && adduser -S -D -H -u 10001 -G sandbox sandbox
+
+COPY sandbox-images/python_runner.py /usr/local/bin/python_runner.py
+RUN chmod 0555 /usr/local/bin/python_runner.py
+
+USER sandbox
+WORKDIR /sandbox
+
+ENTRYPOINT ["python", "-I", "-u", "/usr/local/bin/python_runner.py"]
