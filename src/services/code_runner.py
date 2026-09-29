@@ -94,6 +94,7 @@ def _friendly_stderr(stderr: bytes, language: str) -> str:
     daemon_errors = (
         "failed to connect to the docker api",
         "cannot connect to the docker daemon",
+        "permission denied while trying to connect to the docker api",
         "the system cannot find the file specified",
         "o sistema não pode encontrar o arquivo especificado",
     )

@@ -1,13 +1,26 @@
 # CodeRank
 
-Aplicação educacional em Flet com execução isolada de submissões Python e Java.
+Aplicacao educacional em Flet para praticar programacao em grupos, resolver
+desafios em conteineres isolados e acompanhar a pontuacao em um ranking.
 
-## Pré-requisitos
+## Funcionalidades do MVP
 
-- Python 3.13 ou superior
-- Docker Desktop com o motor Docker em execução
+- cadastro, login e encerramento de sessao;
+- consulta e validacao de CEP pela API ViaCEP;
+- criacao de grupos e entrada por codigo de convite;
+- desafios em Python e Java;
+- execucao isolada com limites de CPU, memoria, processos, rede e tempo;
+- registro de submissoes, pontuacao unica por desafio e ranking por grupo;
+- perfil com pontuacao e quantidade de desafios concluidos;
+- backend Supabase com Auth, PostgreSQL, RLS e funcoes transacionais;
+- modo demonstracao local para testes sem credenciais externas.
 
-## Configuração do ambiente
+## Pre-requisitos
+
+- Python 3.13 ou superior;
+- Docker Desktop com o motor Docker em execucao.
+
+## Executar em modo demonstracao
 
 No PowerShell, a partir da raiz do projeto:
 
@@ -19,44 +32,89 @@ docker compose build
 python main.py
 ```
 
-O comando `docker compose build` cria as imagens locais:
+Sem um arquivo `.env`, o aplicativo abre em modo demonstracao. Use:
 
-- `coderank-python:latest`
-- `coderank-java:latest`
+```text
+E-mail: demo@coderank.local
+Senha:  demo1234
+```
 
-## Como funciona a execução
+Os dados desse modo ficam apenas na memoria e sao apagados quando o aplicativo
+e fechado.
 
-O editor envia o código pela entrada padrão para um contêiner novo e descartável. Cada execução:
+## Conectar ao Supabase
 
-- usa uma imagem previamente construída, sem montar diretórios do computador;
-- não possui acesso à rede;
-- executa com usuário sem privilégios e todas as capabilities removidas;
-- usa sistema de arquivos somente leitura, exceto por uma área temporária limitada;
-- possui limites de CPU, memória, processos, tamanho do código e tempo de execução;
-- remove o contêiner ao finalizar ou exceder o timeout.
+1. Crie um projeto no Supabase.
+2. Abra o SQL Editor e execute todo o arquivo `schema.sql`.
+3. Copie `.env.example` para `.env`.
+4. Preencha somente a URL e a chave publica `anon`/`publishable` do projeto.
+5. Reinicie `python main.py`.
 
-Python é executado com o interpretador em modo isolado. Java exige uma classe pública chamada `Main` e é compilado com Java 21 antes da execução.
+```env
+SUPABASE_URL=https://SEU-PROJETO.supabase.co
+SUPABASE_ANON_KEY=SUA_CHAVE_PUBLICA
+```
 
-> O isolamento reduz o risco de executar código não confiável, mas não substitui uma infraestrutura de sandbox dedicada para uso público em produção.
+Nunca coloque a chave `service_role`, uma secret key ou senha do banco no
+aplicativo. O arquivo `.env` esta ignorado pelo Git.
 
-## Testes
+Se a confirmacao de e-mail estiver ativada no Supabase, o usuario deve abrir o
+link recebido antes do primeiro login.
 
-Os testes unitários não precisam do motor Docker:
+## Execucao do codigo
+
+O editor envia o codigo pela entrada padrao para um conteiner novo e
+descartavel. Cada execucao:
+
+- usa uma imagem previamente construida, sem montar diretorios do computador;
+- nao possui acesso a rede;
+- executa com usuario sem privilegios e capabilities removidas;
+- usa sistema de arquivos somente leitura, exceto por area temporaria limitada;
+- possui limites de CPU, memoria, processos, tamanho do codigo e tempo;
+- remove o conteiner ao finalizar ou exceder o timeout.
+
+Python e executado em modo isolado. Java exige uma classe publica chamada
+`Main` e e compilado com Java 21 antes da execucao.
+
+> Para uma demonstracao local, a interface compara a saida com o resultado
+> esperado e registra a submissao. Em producao publica, a execucao e a
+> validacao devem ficar em um servico de backend dedicado, nunca no cliente.
+
+## Testes automatizados
+
+Os testes unitarios nao precisam do motor Docker:
 
 ```powershell
 python -m unittest discover -s tests -v
 ```
 
-Para conferir manualmente as imagens depois de iniciar o Docker Desktop:
+Eles cobrem os limites do executor, tratamento de timeout, autenticacao local,
+grupos, filtro de desafios e a regra que impede pontuacao duplicada.
+
+## Teste manual do sandbox
+
+Depois de iniciar o Docker Desktop:
 
 ```powershell
-'print("sandbox python ok")' | docker run --rm -i --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m coderank-python:latest
+docker compose build
+python -c "from src.services.code_runner import run_code; r=run_code('python', 'print(2 + 3)'); print(r.stdout, r.stderr, r.exit_code)"
+python -c "from src.services.code_runner import run_code; s='public class Main { public static void main(String[] args) { System.out.println(2 + 3); } }'; r=run_code('java', s); print(r.stdout, r.stderr, r.exit_code)"
+python -c "from src.services.code_runner import run_code; r=run_code('python', 'while True: pass', 2); print(r.stderr, r.timed_out, r.exit_code)"
+```
 
-@'
-public class Main {
-    public static void main(String[] args) {
-        System.out.println("sandbox java ok");
-    }
-}
-'@ | docker run --rm -i --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=128m coderank-java:latest
+Resultados esperados:
+
+- Python imprime `5` e retorna codigo `0`;
+- Java imprime `5` e retorna codigo `0`;
+- o loop infinito e interrompido, `timed_out=True` e codigo `124`.
+
+## Estrutura principal
+
+```text
+src/services/backend.py     Supabase e modo demonstracao
+src/services/code_runner.py Execucao isolada Docker
+src/services/viacep.py      Consulta de endereco
+src/ui/                     Interface Flet
+schema.sql                  Tabelas, funcoes e politicas RLS
+tests/                      Testes automatizados
 ```

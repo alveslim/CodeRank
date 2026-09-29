@@ -52,6 +52,20 @@ class CodeRunnerTests(unittest.TestCase):
         self.assertFalse(result.succeeded)
         self.assertIn("Docker Desktop está indisponível", result.stderr)
 
+    @patch("src.services.code_runner.subprocess.Popen")
+    def test_translates_docker_permission_error(self, popen):
+        process = MagicMock()
+        process.communicate.return_value = (
+            b"",
+            b"permission denied while trying to connect to the docker API",
+        )
+        process.returncode = 1
+        popen.return_value = process
+
+        result = run_code("python", "print('ok')")
+
+        self.assertIn("Docker Desktop está indisponível", result.stderr)
+
     @patch("src.services.code_runner.subprocess.run")
     @patch("src.services.code_runner.subprocess.Popen")
     def test_removes_container_after_timeout(self, popen, run):

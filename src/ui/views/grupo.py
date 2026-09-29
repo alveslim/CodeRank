@@ -1,36 +1,68 @@
 import flet as ft
 
-def tela_desafios(page: ft.Page, navegar):
-    def abrir_desafio(e):
-        navegar("editor")
+from src.services.backend import BackendError
+from src.ui.state import get_state
 
-    botao_resolver = ft.Container(
-        content=ft.Text("Resolver", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
-        bgcolor=ft.Colors.BLUE_700,
-        padding=10,
-        border_radius=5,
-        ink=True,
-        on_click=abrir_desafio
-    )
 
-    card_problema = ft.Container(
-        content=ft.Row([
-            ft.Text("1. Two Sum", weight=ft.FontWeight.BOLD, size=16),
-            ft.Text("Fácil", color=ft.Colors.GREEN_400),
-            botao_resolver
-        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-        padding=15,
-        bgcolor=ft.Colors.GREY_900,
-        border_radius=8,
-        border=ft.Border.all(1, ft.Colors.OUTLINE)
-    )
+def tela_grupo(page: ft.Page, navegar):
+    state = get_state(page)
+    try:
+        groups = state.backend.list_groups()
+        group = next(
+            (item for item in groups if item["id"] == state.selected_group_id),
+            groups[0] if groups else None,
+        )
+        if group is None:
+            return ft.Container(
+                content=ft.Column(
+                    [
+                        ft.Text("Nenhum grupo selecionado.", size=22),
+                        ft.TextButton(
+                            "Voltar aos grupos", on_click=lambda e: navegar("lobby_grupos")
+                        ),
+                    ]
+                ),
+                padding=20,
+            )
+        state.selected_group_id = group["id"]
+        ranking = state.backend.get_ranking(group["id"])
+    except BackendError as exc:
+        return ft.Container(content=ft.Text(str(exc), color=ft.Colors.RED_300), padding=20)
+
+    ranking_controls = [
+        ft.Text(
+            f"#{row['position']}  {row['name']} — {row['points']} pts",
+            size=16,
+        )
+        for row in ranking[:5]
+    ] or [ft.Text("Nenhuma pontuacao ainda.", color=ft.Colors.GREY_400)]
 
     return ft.Container(
-        content=ft.Column([
-            ft.Text("Desafios Disponiveis", size=28, weight=ft.FontWeight.BOLD),
-            ft.Divider(height=20, color=ft.Colors.TRANSPARENT),
-            card_problema,
-        ]),
+        content=ft.Column(
+            [
+                ft.Text(group["name"], size=28, weight=ft.FontWeight.BOLD),
+                ft.Text(f"Codigo de convite: {group['invite_code']}", color=ft.Colors.BLUE_300),
+                ft.Divider(height=20, color=ft.Colors.OUTLINE),
+                ft.Text("Ranking do grupo", size=20, weight=ft.FontWeight.BOLD),
+                *ranking_controls,
+                ft.Divider(height=20, color=ft.Colors.OUTLINE),
+                ft.Row(
+                    [
+                        ft.TextButton(
+                            "Resolver desafios",
+                            icon=ft.Icons.CODE,
+                            on_click=lambda e: navegar("desafios"),
+                        ),
+                        ft.TextButton(
+                            "Ver ranking completo",
+                            icon=ft.Icons.LEADERBOARD,
+                            on_click=lambda e: navegar("ranking"),
+                        ),
+                    ],
+                    wrap=True,
+                ),
+            ]
+        ),
         padding=20,
-        expand=True
+        expand=True,
     )
