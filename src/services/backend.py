@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import hashlib
 import os
 from pathlib import Path
+import re
 import secrets
 import time
 import uuid
@@ -21,6 +22,32 @@ import requests
 
 class BackendError(RuntimeError):
     """Erro de negocio ou comunicacao apresentado de forma amigavel na UI."""
+
+
+def _mensagem_backend_amigavel(message: str | None, status_code: int) -> str:
+    """Traduz erros comuns do Supabase Auth sem esconder erros desconhecidos."""
+
+    if not message:
+        return f"Falha no backend ({status_code})."
+    normalized = message.casefold()
+    if "email rate limit exceeded" in normalized:
+        return (
+            "O limite temporario de e-mails do Supabase foi atingido. "
+            "Use o primeiro e-mail recebido ou aguarde a liberacao do envio."
+        )
+    if "for security purposes" in normalized and "request this after" in normalized:
+        match = re.search(r"after\s+(\d+)\s+seconds?", normalized)
+        espera = f" Aguarde {match.group(1)} segundos." if match else " Aguarde um minuto."
+        return "Muitas tentativas seguidas foram detectadas." + espera
+    if "user already registered" in normalized or "already been registered" in normalized:
+        return "Este e-mail ja esta cadastrado. Confirme o e-mail e entre pela tela de login."
+    if "email not confirmed" in normalized:
+        return "Confirme seu e-mail antes de entrar. Verifique tambem a caixa de spam."
+    if "invalid login credentials" in normalized:
+        return "E-mail ou senha incorretos."
+    if "email address" in normalized and "invalid" in normalized:
+        return "Informe um endereco de e-mail valido."
+    return message
 
 
 @dataclass(frozen=True)
@@ -397,7 +424,9 @@ class SupabaseBackend:
                 )
             except ValueError:
                 message = None
-            raise BackendError(message or f"Falha no backend ({response.status_code}).")
+            raise BackendError(
+                _mensagem_backend_amigavel(message, response.status_code)
+            )
         if not response.content:
             return None
         return response.json()

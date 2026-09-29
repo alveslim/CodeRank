@@ -16,7 +16,8 @@ create table if not exists public.profiles (
     id uuid primary key references auth.users(id) on delete cascade,
     email text not null,
     name text not null check (char_length(trim(name)) between 2 and 80),
-    cep text,
+    cep text constraint profiles_cep_format
+        check (cep is null or cep ~ '^[0-9]{8}$'),
     city text,
     state text,
     course text default 'Engenharia de Software',
@@ -97,9 +98,21 @@ begin
         new.id,
         coalesce(new.email, ''),
         coalesce(nullif(trim(new.raw_user_meta_data->>'name'), ''), split_part(coalesce(new.email, 'usuario'), '@', 1)),
-        nullif(new.raw_user_meta_data->>'cep', ''),
-        nullif(new.raw_user_meta_data->>'city', ''),
-        nullif(new.raw_user_meta_data->>'state', ''),
+        case
+            when coalesce(new.raw_user_meta_data->>'cep', '') ~ '^[0-9]{8}$'
+            then new.raw_user_meta_data->>'cep'
+            else null
+        end,
+        case
+            when coalesce(new.raw_user_meta_data->>'cep', '') ~ '^[0-9]{8}$'
+            then nullif(new.raw_user_meta_data->>'city', '')
+            else null
+        end,
+        case
+            when coalesce(new.raw_user_meta_data->>'cep', '') ~ '^[0-9]{8}$'
+            then nullif(new.raw_user_meta_data->>'state', '')
+            else null
+        end,
         coalesce(nullif(new.raw_user_meta_data->>'course', ''), 'Engenharia de Software'),
         coalesce(nullif(new.raw_user_meta_data->>'institution', ''), 'FAMETRO')
     )

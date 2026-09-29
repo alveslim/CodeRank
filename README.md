@@ -6,14 +6,14 @@ desafios em conteineres isolados e acompanhar a pontuacao em um ranking.
 ## Funcionalidades do MVP
 
 - cadastro, login e encerramento de sessao;
-- consulta e validacao de CEP pela API ViaCEP;
+- consulta, formatacao e validacao obrigatoria de CEP pela API ViaCEP;
 - criacao de grupos e entrada por codigo de convite;
 - listagem e remocao protegida de membros por administradores;
 - desafios em Python e Java;
 - execucao isolada com limites de CPU, memoria, processos, rede e tempo;
 - registro de submissoes, pontuacao unica por desafio e ranking por grupo;
 - perfil com pontuacao e quantidade de desafios concluidos;
-- edicao de perfil, historico de submissoes e notificacoes de pontuacao;
+- edicao de perfil e endereco, historico de submissoes e notificacoes de pontuacao;
 - backend Supabase com Auth, PostgreSQL, RLS e funcoes transacionais;
 - modo demonstracao local para testes sem credenciais externas.
 
@@ -63,6 +63,10 @@ aplicativo. O arquivo `.env` esta ignorado pelo Git.
 Se a confirmacao de e-mail estiver ativada no Supabase, o usuario deve abrir o
 link recebido antes do primeiro login.
 
+O servidor de e-mail padrao do Supabase possui limites baixos. Clique em
+`Criar conta` apenas uma vez; se a conta ja foi criada, use o primeiro e-mail
+de confirmacao recebido em vez de repetir o cadastro.
+
 ## Execucao do codigo
 
 O editor envia o codigo pela entrada padrao para um conteiner novo e
@@ -91,8 +95,8 @@ python -m unittest discover -s tests -v
 ```
 
 Eles cobrem os limites do executor, tratamento de timeout, autenticacao local,
-grupos, permissoes de membros, perfil, filtro de desafios, historico e a regra
-que impede pontuacao duplicada.
+grupos, permissoes de membros, perfil, consulta e validacao de CEP, filtro de
+desafios, historico e a regra que impede pontuacao duplicada.
 
 ## Teste manual do sandbox
 

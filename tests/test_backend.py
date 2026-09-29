@@ -1,6 +1,10 @@
 import unittest
 
-from src.services.backend import BackendError, DemoBackend
+from src.services.backend import (
+    BackendError,
+    DemoBackend,
+    _mensagem_backend_amigavel,
+)
 
 
 class DemoBackendTests(unittest.TestCase):
@@ -80,11 +84,36 @@ class DemoBackendTests(unittest.TestCase):
         self.login_demo()
 
         profile = self.backend.update_profile(
-            {"name": "Novo Nome", "course": "Ciencia da Computacao"}
+            {
+                "name": "Novo Nome",
+                "course": "Ciencia da Computacao",
+                "cep": "69005070",
+                "city": "Manaus",
+                "state": "AM",
+            }
         )
 
         self.assertEqual("Novo Nome", profile["name"])
         self.assertEqual("Ciencia da Computacao", profile["course"])
+        self.assertEqual("69005070", profile["cep"])
+        self.assertEqual("Manaus", profile["city"])
+
+    def test_translates_common_supabase_auth_errors(self):
+        self.assertIn(
+            "limite temporario",
+            _mensagem_backend_amigavel("Email rate limit exceeded", 429),
+        )
+        self.assertIn(
+            "Aguarde 54 segundos",
+            _mensagem_backend_amigavel(
+                "For security purposes, you can only request this after 54 seconds.",
+                429,
+            ),
+        )
+        self.assertIn(
+            "ja esta cadastrado",
+            _mensagem_backend_amigavel("User already registered", 422),
+        )
 
     def test_owner_can_remove_member(self):
         owner = self.backend.sign_up(
