@@ -1,4 +1,5 @@
 import flet as ft
+import random # simular a geracao de um código aleatório :)
 
 def tela_grupos(page: ft.Page, navegar):
     
@@ -12,9 +13,66 @@ def tela_grupos(page: ft.Page, navegar):
         codigo = campo_codigo.value
         if codigo:
             print(f"Tentando ingressar no grupo com código: {codigo}")
+            navegar("grupo")
         else:
             print("Digite um código válido.")
-
+            
+    nome_grupo_input =  ft.TextField(label='Nome do Grupo', width=300, autofocus=True)
+    desc_grupo_input = ft.TextField(label="Descrição (Opcional)", width=300, multiline=True)
+    
+    def fechar_modal(e):
+        modal_criar_grupo.open = False
+        page.update()
+    
+    def confirmar_criacao(e):
+        nome = nome_grupo_input.value
+        if nome:
+            codigo_gerado = str(random.randint(10000, 99999)) # chamada back
+            
+            novo_card = criar_card_grupo(nome, codigo_gerado)
+            lista_grupos.controls.insert(0, novo_card)
+            
+            nome_grupo_input.value = ""
+            nome_grupo_input.error_text = None
+            desc_grupo_input.value = ""
+            
+            modal_criar_grupo.open = False
+            page.update()
+        else:
+            # Exibe erro se tentar criar sem nome
+            nome_grupo_input.error_text = "O nome do grupo é obrigatório"
+            page.update()
+            
+    modal_criar_grupo = ft.AlertDialog(
+            title=ft.Text("Criar Novo Grupo", weight=ft.FontWeight.BOLD),
+            content=ft.Column([
+                ft.Text("Preencha os dados abaixo para gerar um novo código de convite:"),
+                nome_grupo_input,
+                desc_grupo_input
+            ], tight=True), # tight=True evita que a coluna ocupe a tela toda
+            actions=[
+                ft.TextButton("Cancelar", on_click=fechar_modal),
+                ft.Container(
+                    content=ft.Text("Criar Grupo", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
+                    on_click=confirmar_criacao, 
+                    bgcolor=ft.Colors.BLUE_700,
+                    padding=10,
+                    border_radius=5,
+                    ink=True
+                )
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+            shape=ft.RoundedRectangleBorder(radius=8)
+        )
+    
+    def abrir_modal_criar(e):
+        # Abre o modal na tela
+        if modal_criar_grupo not in page.overlay:
+            page.overlay.append(modal_criar_grupo)
+            
+        modal_criar_grupo.open = True
+        page.update()
+    
     # Elementos para a US03 - Entrar via código
     campo_codigo = ft.TextField(
         label="Código de Convite", 
@@ -42,7 +100,7 @@ def tela_grupos(page: ft.Page, navegar):
             ft.Icon(ft.Icons.ADD, color=ft.Colors.WHITE, size=20),
             ft.Text("Criar Grupo", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD)
         ], alignment=ft.MainAxisAlignment.CENTER, spacing=5),
-        on_click=criar_grupo,
+        on_click=abrir_modal_criar,
         bgcolor=ft.Colors.BLUE_700,
         height=45,
         padding=ft.Padding.symmetric(horizontal=15),
