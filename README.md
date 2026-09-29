@@ -8,10 +8,12 @@ desafios em conteineres isolados e acompanhar a pontuacao em um ranking.
 - cadastro, login e encerramento de sessao;
 - consulta e validacao de CEP pela API ViaCEP;
 - criacao de grupos e entrada por codigo de convite;
+- listagem e remocao protegida de membros por administradores;
 - desafios em Python e Java;
 - execucao isolada com limites de CPU, memoria, processos, rede e tempo;
 - registro de submissoes, pontuacao unica por desafio e ranking por grupo;
 - perfil com pontuacao e quantidade de desafios concluidos;
+- edicao de perfil, historico de submissoes e notificacoes de pontuacao;
 - backend Supabase com Auth, PostgreSQL, RLS e funcoes transacionais;
 - modo demonstracao local para testes sem credenciais externas.
 
@@ -89,7 +91,8 @@ python -m unittest discover -s tests -v
 ```
 
 Eles cobrem os limites do executor, tratamento de timeout, autenticacao local,
-grupos, filtro de desafios e a regra que impede pontuacao duplicada.
+grupos, permissoes de membros, perfil, filtro de desafios, historico e a regra
+que impede pontuacao duplicada.
 
 ## Teste manual do sandbox
 

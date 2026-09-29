@@ -40,7 +40,9 @@ class DemoBackend:
         self._users: dict[str, dict[str, Any]] = {}
         self._groups: dict[str, dict[str, Any]] = {}
         self._members: dict[str, dict[str, int]] = {}
+        self._roles: dict[str, dict[str, str]] = {}
         self._submissions: list[dict[str, Any]] = []
+        self._notifications: dict[str, list[dict[str, Any]]] = {}
         self._challenges = [
             {
                 "id": "demo-python-soma",
@@ -125,6 +127,7 @@ class DemoBackend:
             "institution": profile.get("institution", "FAMETRO"),
             "avatar_url": None,
         }
+        self._notifications[user_id] = []
         self.session = AuthSession(user_id=user_id, email=email)
         return self.session
 
@@ -142,7 +145,11 @@ class DemoBackend:
     def list_groups(self) -> list[dict[str, Any]]:
         session = self._require_session()
         return [
-            {**group, "points": self._members[group_id].get(session.user_id, 0)}
+            {
+                **group,
+                "points": self._members[group_id].get(session.user_id, 0),
+                "role": self._roles[group_id].get(session.user_id, "member"),
+            }
             for group_id, group in self._groups.items()
             if session.user_id in self._members[group_id]
         ]
@@ -162,6 +169,7 @@ class DemoBackend:
         }
         self._groups[group_id] = group
         self._members[group_id] = {session.user_id: 0}
+        self._roles[group_id] = {session.user_id: "owner"}
         return group
 
     def join_group(self, invite_code: str) -> dict[str, Any]:
@@ -170,6 +178,7 @@ class DemoBackend:
         for group_id, group in self._groups.items():
             if group["invite_code"] == normalized:
                 self._members[group_id].setdefault(session.user_id, 0)
+                self._roles[group_id].setdefault(session.user_id, "member")
                 return group
         raise BackendError("Codigo de convite invalido.")
 
@@ -208,6 +217,38 @@ class DemoBackend:
             row["position"] = position
         return rows
 
+    def list_group_members(self, group_id: str) -> list[dict[str, Any]]:
+        session = self._require_session()
+        if session.user_id not in self._members.get(group_id, {}):
+            raise BackendError("Voce nao participa deste grupo.")
+        users_by_id = {item["id"]: item for item in self._users.values()}
+        rows = [
+            {
+                "user_id": user_id,
+                "name": users_by_id[user_id]["name"],
+                "email": users_by_id[user_id]["email"],
+                "role": self._roles[group_id][user_id],
+                "points": points,
+            }
+            for user_id, points in self._members[group_id].items()
+        ]
+        return sorted(rows, key=lambda item: (item["role"] != "owner", item["name"].lower()))
+
+    def remove_group_member(self, group_id: str, user_id: str) -> None:
+        session = self._require_session()
+        current_role = self._roles.get(group_id, {}).get(session.user_id)
+        target_role = self._roles.get(group_id, {}).get(user_id)
+        if current_role not in {"owner", "admin"}:
+            raise BackendError("Somente administradores podem remover membros.")
+        if target_role == "owner" or user_id == session.user_id:
+            raise BackendError("O proprietario nao pode ser removido do grupo.")
+        if current_role == "admin" and target_role == "admin":
+            raise BackendError("Um administrador nao pode remover outro administrador.")
+        if target_role is None:
+            raise BackendError("Membro nao encontrado.")
+        del self._members[group_id][user_id]
+        del self._roles[group_id][user_id]
+
     def get_profile(self) -> dict[str, Any]:
         session = self._require_session()
         user = next(item for item in self._users.values() if item["id"] == session.user_id)
@@ -222,6 +263,36 @@ class DemoBackend:
             for key, value in user.items()
             if key not in {"salt", "password_hash"}
         } | {"points": points, "solved_count": len(solved)}
+
+    def update_profile(self, changes: dict[str, Any]) -> dict[str, Any]:
+        session = self._require_session()
+        user = next(item for item in self._users.values() if item["id"] == session.user_id)
+        name = str(changes.get("name", user["name"])).strip()
+        if not 2 <= len(name) <= 80:
+            raise BackendError("O nome deve ter entre 2 e 80 caracteres.")
+        for field in {"name", "cep", "city", "state", "course", "institution", "avatar_url"}:
+            if field in changes:
+                user[field] = changes[field]
+        user["name"] = name
+        return self.get_profile()
+
+    def list_submission_history(self, limit: int = 10) -> list[dict[str, Any]]:
+        session = self._require_session()
+        challenges = {item["id"]: item for item in self._challenges}
+        rows = [
+            {
+                **item,
+                "challenge_title": challenges[item["challenge_id"]]["title"],
+                "points": challenges[item["challenge_id"]]["points"] if item["correct"] else 0,
+            }
+            for item in reversed(self._submissions)
+            if item["user_id"] == session.user_id
+        ]
+        return rows[:limit]
+
+    def list_notifications(self, limit: int = 10) -> list[dict[str, Any]]:
+        session = self._require_session()
+        return list(reversed(self._notifications.get(session.user_id, [])))[:limit]
 
     def record_submission(
         self,
@@ -257,10 +328,19 @@ class DemoBackend:
                 "exit_code": exit_code,
                 "correct": correct,
                 "execution_ms": execution_ms,
+                "created_at": time.time(),
             }
         )
         if awarded and group_id in self._members:
             self._members[group_id][session.user_id] += awarded
+            self._notifications[session.user_id].append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "message": f"Voce ganhou {awarded} pontos em {challenge['title']}.",
+                    "read": False,
+                    "created_at": time.time(),
+                }
+            )
         return {"accepted": correct, "points_awarded": awarded}
 
 
@@ -413,6 +493,36 @@ class SupabaseBackend:
             "POST", "/rest/v1/rpc/get_group_ranking", json={"p_group_id": group_id}
         )
 
+    def list_group_members(self, group_id: str) -> list[dict[str, Any]]:
+        self._require_session()
+        rows = self._request(
+            "GET",
+            "/rest/v1/group_members",
+            params={
+                "select": "user_id,role,points,profiles(name,email)",
+                "group_id": f"eq.{group_id}",
+                "order": "points.desc",
+            },
+        )
+        return [
+            {
+                "user_id": row["user_id"],
+                "role": row["role"],
+                "points": row["points"],
+                "name": row["profiles"]["name"],
+                "email": row["profiles"]["email"],
+            }
+            for row in rows
+        ]
+
+    def remove_group_member(self, group_id: str, user_id: str) -> None:
+        self._require_session()
+        self._request(
+            "POST",
+            "/rest/v1/rpc/remove_group_member",
+            json={"p_group_id": group_id, "p_user_id": user_id},
+        )
+
     def get_profile(self) -> dict[str, Any]:
         session = self._require_session()
         rows = self._request(
@@ -435,6 +545,56 @@ class SupabaseBackend:
         )
         profile["solved_count"] = len({item["challenge_id"] for item in solved})
         return profile
+
+    def update_profile(self, changes: dict[str, Any]) -> dict[str, Any]:
+        session = self._require_session()
+        allowed = {"name", "cep", "city", "state", "course", "institution", "avatar_url"}
+        payload = {key: value for key, value in changes.items() if key in allowed}
+        payload["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        rows = self._request(
+            "PATCH",
+            "/rest/v1/profiles",
+            params={"id": f"eq.{session.user_id}"},
+            json=payload,
+            prefer="return=representation",
+        )
+        if not rows:
+            raise BackendError("Nao foi possivel atualizar o perfil.")
+        return rows[0]
+
+    def list_submission_history(self, limit: int = 10) -> list[dict[str, Any]]:
+        session = self._require_session()
+        rows = self._request(
+            "GET",
+            "/rest/v1/submissions",
+            params={
+                "select": "id,correct,language,exit_code,execution_ms,created_at,challenges(title,points)",
+                "user_id": f"eq.{session.user_id}",
+                "order": "created_at.desc",
+                "limit": str(limit),
+            },
+        )
+        return [
+            {
+                **row,
+                "challenge_title": row["challenges"]["title"],
+                "points": row["challenges"]["points"] if row["correct"] else 0,
+            }
+            for row in rows
+        ]
+
+    def list_notifications(self, limit: int = 10) -> list[dict[str, Any]]:
+        session = self._require_session()
+        return self._request(
+            "GET",
+            "/rest/v1/notifications",
+            params={
+                "select": "id,message,read,created_at",
+                "user_id": f"eq.{session.user_id}",
+                "order": "created_at.desc",
+                "limit": str(limit),
+            },
+        )
 
     def record_submission(
         self,

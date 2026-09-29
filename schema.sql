@@ -168,6 +168,36 @@ as $$
     order by gm.points desc, lower(p.name) asc;
 $$;
 
+create or replace function public.remove_group_member(p_group_id uuid, p_user_id uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+    current_role text;
+    target_role text;
+begin
+    select role into current_role from public.group_members
+    where group_id = p_group_id and user_id = auth.uid();
+    select role into target_role from public.group_members
+    where group_id = p_group_id and user_id = p_user_id;
+
+    if current_role not in ('owner', 'admin') then
+        raise exception 'Somente administradores podem remover membros';
+    end if;
+    if target_role is null then
+        raise exception 'Membro nao encontrado';
+    end if;
+    if target_role = 'owner' or p_user_id = auth.uid() then
+        raise exception 'O proprietario nao pode ser removido';
+    end if;
+    if current_role = 'admin' and target_role = 'admin' then
+        raise exception 'Um administrador nao pode remover outro administrador';
+    end if;
+    delete from public.group_members where group_id = p_group_id and user_id = p_user_id;
+end;
+$$;
+
 create or replace function public.record_submission(
     p_challenge_id uuid,
     p_group_id uuid,
@@ -190,6 +220,9 @@ declare
 begin
     if auth.uid() is null then
         raise exception 'Usuario nao autenticado';
+    end if;
+    if p_group_id is not null and not public.is_group_member(p_group_id) then
+        raise exception 'Usuario nao participa deste grupo';
     end if;
     select points into challenge_points from public.challenges where id = p_challenge_id and active;
     if challenge_points is null then
@@ -218,6 +251,11 @@ begin
         set points = points + challenge_points
         where group_id = p_group_id and user_id = auth.uid();
         if found then awarded := challenge_points; end if;
+    end if;
+    if awarded > 0 then
+        insert into public.notifications (user_id, message)
+        select auth.uid(), 'Voce ganhou ' || awarded || ' pontos em ' || title || '.'
+        from public.challenges where id = p_challenge_id;
     end if;
     return query select p_correct, awarded;
 end;
@@ -289,12 +327,14 @@ using (user_id = auth.uid()) with check (user_id = auth.uid());
 revoke all on function public.create_group(text) from public;
 revoke all on function public.join_group(text) from public;
 revoke all on function public.get_group_ranking(uuid) from public;
+revoke all on function public.remove_group_member(uuid, uuid) from public;
 revoke all on function public.record_submission(uuid, uuid, text, text, text, text, integer, boolean, integer) from public;
 revoke all on function public.is_group_member(uuid) from public;
 revoke all on function public.shares_group_with(uuid) from public;
 grant execute on function public.create_group(text) to authenticated;
 grant execute on function public.join_group(text) to authenticated;
 grant execute on function public.get_group_ranking(uuid) to authenticated;
+grant execute on function public.remove_group_member(uuid, uuid) to authenticated;
 grant execute on function public.record_submission(uuid, uuid, text, text, text, text, integer, boolean, integer) to authenticated;
 grant execute on function public.is_group_member(uuid) to authenticated;
 grant execute on function public.shares_group_with(uuid) to authenticated;

@@ -73,6 +73,50 @@ class DemoBackendTests(unittest.TestCase):
         self.assertEqual(100, first["points_awarded"])
         self.assertEqual(0, second["points_awarded"])
         self.assertEqual(400, user_row["points"])
+        self.assertEqual(2, len(self.backend.list_submission_history()))
+        self.assertIn("100 pontos", self.backend.list_notifications()[0]["message"])
+
+    def test_updates_profile(self):
+        self.login_demo()
+
+        profile = self.backend.update_profile(
+            {"name": "Novo Nome", "course": "Ciencia da Computacao"}
+        )
+
+        self.assertEqual("Novo Nome", profile["name"])
+        self.assertEqual("Ciencia da Computacao", profile["course"])
+
+    def test_owner_can_remove_member(self):
+        owner = self.backend.sign_up(
+            "owner2@example.com", "senha123", {"name": "Owner Dois"}
+        )
+        group = self.backend.create_group("Grupo Remocao")
+        self.backend.sign_out()
+        member = self.backend.sign_up(
+            "member2@example.com", "senha123", {"name": "Member Dois"}
+        )
+        self.backend.join_group(group["invite_code"])
+        self.backend.sign_out()
+        self.backend.sign_in("owner2@example.com", "senha123")
+
+        self.backend.remove_group_member(group["id"], member.user_id)
+
+        members = self.backend.list_group_members(group["id"])
+        self.assertEqual([owner.user_id], [item["user_id"] for item in members])
+
+    def test_member_cannot_remove_owner(self):
+        owner = self.backend.sign_up(
+            "owner3@example.com", "senha123", {"name": "Owner Tres"}
+        )
+        group = self.backend.create_group("Grupo Protegido")
+        self.backend.sign_out()
+        self.backend.sign_up(
+            "member3@example.com", "senha123", {"name": "Member Tres"}
+        )
+        self.backend.join_group(group["invite_code"])
+
+        with self.assertRaisesRegex(BackendError, "administradores"):
+            self.backend.remove_group_member(group["id"], owner.user_id)
 
 
 if __name__ == "__main__":
