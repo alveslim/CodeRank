@@ -1,0 +1,9 @@
+.git
+.gitignore
+.venv
+**/__pycache__
+**/*.pyc
+credentials.json
+README.md
+src
+tests
