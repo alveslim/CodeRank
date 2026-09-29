@@ -3,6 +3,15 @@
 
 create extension if not exists pgcrypto;
 
+-- Funcoes auxiliares de autorizacao ficam fora do schema exposto pela Data API.
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
+grant usage on schema private to authenticated;
+
+-- Novas funcoes nao devem nascer executaveis pela API por padrao.
+alter default privileges in schema public revoke execute on functions from public, anon, authenticated;
+alter default privileges in schema private revoke execute on functions from public, anon, authenticated;
+
 create table if not exists public.profiles (
     id uuid primary key references auth.users(id) on delete cascade,
     email text not null,
@@ -71,14 +80,16 @@ create table if not exists public.notifications (
 );
 
 create index if not exists idx_group_members_user on public.group_members(user_id);
+create index if not exists idx_groups_owner on public.groups(owner_id);
 create index if not exists idx_submissions_user on public.submissions(user_id, created_at desc);
 create index if not exists idx_submissions_challenge on public.submissions(challenge_id, correct);
+create index if not exists idx_submissions_group on public.submissions(group_id);
 create index if not exists idx_notifications_user on public.notifications(user_id, read);
 
-create or replace function public.handle_new_user()
+create or replace function private.handle_new_user()
 returns trigger
 language plpgsql
-security definer set search_path = public
+security definer set search_path = pg_catalog
 as $$
 begin
     insert into public.profiles (id, email, name, cep, city, state, course, institution)
@@ -100,12 +111,38 @@ $$;
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
-for each row execute procedure public.handle_new_user();
+for each row execute procedure private.handle_new_user();
+
+create or replace function private.is_group_member(p_group_id uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = pg_catalog
+as $$
+    select exists (
+        select 1 from public.group_members
+        where group_id = p_group_id and user_id = auth.uid()
+    );
+$$;
+
+create or replace function private.shares_group_with(p_user_id uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = pg_catalog
+as $$
+    select exists (
+        select 1
+        from public.group_members mine
+        join public.group_members theirs on theirs.group_id = mine.group_id
+        where mine.user_id = auth.uid() and theirs.user_id = p_user_id
+    );
+$$;
 
 create or replace function public.create_group(p_name text)
 returns setof public.groups
 language plpgsql
-security definer set search_path = public
+security definer set search_path = pg_catalog
 as $$
 declare
     created_group public.groups;
@@ -118,7 +155,7 @@ begin
     end if;
 
     insert into public.groups (name, invite_code, owner_id)
-    values (trim(p_name), upper(substr(encode(gen_random_bytes(8), 'hex'), 1, 8)), auth.uid())
+    values (trim(p_name), upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)), auth.uid())
     returning * into created_group;
 
     insert into public.group_members (group_id, user_id, role)
@@ -130,7 +167,7 @@ $$;
 create or replace function public.join_group(p_invite_code text)
 returns setof public.groups
 language plpgsql
-security definer set search_path = public
+security definer set search_path = pg_catalog
 as $$
 declare
     selected_group public.groups;
@@ -152,12 +189,12 @@ end;
 $$;
 
 create or replace function public.get_group_ranking(p_group_id uuid)
-returns table (user_id uuid, name text, points integer, position bigint)
+returns table (user_id uuid, name text, points integer, "position" bigint)
 language sql
-security definer set search_path = public
+security invoker set search_path = pg_catalog
 as $$
     select gm.user_id, p.name, gm.points,
-           row_number() over (order by gm.points desc, lower(p.name) asc) as position
+           row_number() over (order by gm.points desc, lower(p.name) asc) as "position"
     from public.group_members gm
     join public.profiles p on p.id = gm.user_id
     where gm.group_id = p_group_id
@@ -171,7 +208,7 @@ $$;
 create or replace function public.remove_group_member(p_group_id uuid, p_user_id uuid)
 returns void
 language plpgsql
-security definer set search_path = public
+security definer set search_path = pg_catalog
 as $$
 declare
     current_role text;
@@ -211,23 +248,32 @@ create or replace function public.record_submission(
 )
 returns table (accepted boolean, points_awarded integer)
 language plpgsql
-security definer set search_path = public
+security definer set search_path = pg_catalog
 as $$
 declare
     challenge_points integer;
+    v_expected_output text;
+    v_correct boolean;
     already_solved boolean;
     awarded integer := 0;
 begin
     if auth.uid() is null then
         raise exception 'Usuario nao autenticado';
     end if;
-    if p_group_id is not null and not public.is_group_member(p_group_id) then
+    if p_group_id is not null and not private.is_group_member(p_group_id) then
         raise exception 'Usuario nao participa deste grupo';
     end if;
-    select points into challenge_points from public.challenges where id = p_challenge_id and active;
+    select points, expected_output into challenge_points, v_expected_output
+    from public.challenges where id = p_challenge_id and active;
     if challenge_points is null then
         raise exception 'Desafio nao encontrado';
     end if;
+
+    -- O sinal enviado pelo cliente e mantido por compatibilidade, mas nao e confiavel.
+    -- A aprovacao e recalculada com a saida registrada e o codigo de retorno.
+    v_correct := p_exit_code = 0
+        and btrim(replace(coalesce(p_stdout, ''), E'\r\n', E'\n'))
+            = btrim(replace(v_expected_output, E'\r\n', E'\n'));
 
     select exists(
         select 1 from public.submissions
@@ -243,10 +289,10 @@ begin
     ) values (
         auth.uid(), p_challenge_id, p_group_id, p_language, p_source_code,
         left(coalesce(p_stdout, ''), 50000), left(coalesce(p_stderr, ''), 50000),
-        p_exit_code, p_correct, p_execution_ms
+        p_exit_code, v_correct, p_execution_ms
     );
 
-    if p_correct and not already_solved and p_group_id is not null then
+    if v_correct and not already_solved and p_group_id is not null then
         update public.group_members
         set points = points + challenge_points
         where group_id = p_group_id and user_id = auth.uid();
@@ -257,7 +303,7 @@ begin
         select auth.uid(), 'Voce ganhou ' || awarded || ' pontos em ' || title || '.'
         from public.challenges where id = p_challenge_id;
     end if;
-    return query select p_correct, awarded;
+    return query select v_correct, awarded;
 end;
 $$;
 
@@ -268,46 +314,20 @@ alter table public.challenges enable row level security;
 alter table public.submissions enable row level security;
 alter table public.notifications enable row level security;
 
-create or replace function public.is_group_member(p_group_id uuid)
-returns boolean
-language sql
-stable
-security definer set search_path = public
-as $$
-    select exists (
-        select 1 from public.group_members
-        where group_id = p_group_id and user_id = auth.uid()
-    );
-$$;
-
-create or replace function public.shares_group_with(p_user_id uuid)
-returns boolean
-language sql
-stable
-security definer set search_path = public
-as $$
-    select exists (
-        select 1
-        from public.group_members mine
-        join public.group_members theirs on theirs.group_id = mine.group_id
-        where mine.user_id = auth.uid() and theirs.user_id = p_user_id
-    );
-$$;
-
 drop policy if exists profiles_select_related on public.profiles;
 create policy profiles_select_related on public.profiles for select to authenticated
-using (id = auth.uid() or public.shares_group_with(id));
+using (id = (select auth.uid()) or private.shares_group_with(id));
 drop policy if exists profiles_update_own on public.profiles;
 create policy profiles_update_own on public.profiles for update to authenticated
-using (id = auth.uid()) with check (id = auth.uid());
+using (id = (select auth.uid())) with check (id = (select auth.uid()));
 
 drop policy if exists groups_select_member on public.groups;
 create policy groups_select_member on public.groups for select to authenticated
-using (public.is_group_member(id));
+using (private.is_group_member(id));
 
 drop policy if exists members_select_group on public.group_members;
 create policy members_select_group on public.group_members for select to authenticated
-using (public.is_group_member(group_id));
+using (private.is_group_member(group_id));
 
 drop policy if exists challenges_select_active on public.challenges;
 create policy challenges_select_active on public.challenges for select to authenticated
@@ -315,29 +335,40 @@ using (active);
 
 drop policy if exists submissions_select_own on public.submissions;
 create policy submissions_select_own on public.submissions for select to authenticated
-using (user_id = auth.uid());
+using (user_id = (select auth.uid()));
 
 drop policy if exists notifications_own on public.notifications;
 create policy notifications_own on public.notifications for select to authenticated
-using (user_id = auth.uid());
+using (user_id = (select auth.uid()));
 drop policy if exists notifications_update_own on public.notifications;
 create policy notifications_update_own on public.notifications for update to authenticated
-using (user_id = auth.uid()) with check (user_id = auth.uid());
+using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 
-revoke all on function public.create_group(text) from public;
-revoke all on function public.join_group(text) from public;
-revoke all on function public.get_group_ranking(uuid) from public;
-revoke all on function public.remove_group_member(uuid, uuid) from public;
-revoke all on function public.record_submission(uuid, uuid, text, text, text, text, integer, boolean, integer) from public;
-revoke all on function public.is_group_member(uuid) from public;
-revoke all on function public.shares_group_with(uuid) from public;
+revoke all on function public.create_group(text) from public, anon, authenticated;
+revoke all on function public.join_group(text) from public, anon, authenticated;
+revoke all on function public.get_group_ranking(uuid) from public, anon, authenticated;
+revoke all on function public.remove_group_member(uuid, uuid) from public, anon, authenticated;
+revoke all on function public.record_submission(uuid, uuid, text, text, text, text, integer, boolean, integer) from public, anon, authenticated;
+revoke all on function private.handle_new_user() from public, anon, authenticated;
+revoke all on function private.is_group_member(uuid) from public, anon;
+revoke all on function private.shares_group_with(uuid) from public, anon;
 grant execute on function public.create_group(text) to authenticated;
 grant execute on function public.join_group(text) to authenticated;
 grant execute on function public.get_group_ranking(uuid) to authenticated;
 grant execute on function public.remove_group_member(uuid, uuid) to authenticated;
 grant execute on function public.record_submission(uuid, uuid, text, text, text, text, integer, boolean, integer) to authenticated;
-grant execute on function public.is_group_member(uuid) to authenticated;
-grant execute on function public.shares_group_with(uuid) to authenticated;
+grant execute on function private.is_group_member(uuid) to authenticated;
+grant execute on function private.shares_group_with(uuid) to authenticated;
+
+-- A opcao "automatic RLS" do projeto cria este gatilho auxiliar no schema
+-- publico. O gatilho continua funcionando sem ser chamavel pela Data API.
+do $$
+begin
+    if to_regprocedure('public.rls_auto_enable()') is not null then
+        execute 'revoke execute on function public.rls_auto_enable() from public, anon, authenticated';
+    end if;
+end;
+$$;
 
 revoke all on table public.profiles from anon;
 revoke all on table public.groups from anon;
