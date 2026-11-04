@@ -19,7 +19,7 @@ O **CodeRank** é uma aplicação educacional desenvolvida em Flet que permite a
 
 ### Telas da Aplicação
 <!-- Arraste as imagens (Login, Desafios, Grupos) aqui e deixe o link que o GitHub gerar -->
-![Tela de Login do CodeRank](https://via.placeholder.com/600x400?text=Tela+de+Login+-+Coloque+a+imagem+aqui)
+![Tela de Login do CodeRank](https://github.com/user-attachments/assets/f8df486e-8ebc-4498-8df4-6e34c50e69a0)
 
 ### Sistema em Ação
 
@@ -35,7 +35,7 @@ O **CodeRank** é uma aplicação educacional desenvolvida em Flet que permite a
 ### Sistema em Ação
 Assista abaixo à gravação do CodeRank em funcionamento:
 
-<video src="https://github.com/user-attachments/assets/e5d714bc-1987-4140-9208-f62e04c4e802" controls="controls" width="100%"></video>
+<video src="https://github.com/user-attachments/assets/42e6dbaf-9775-4348-bada-ea00889ce9f2" controls="controls" width="100%"></video>
     </td>
 </table>
 
