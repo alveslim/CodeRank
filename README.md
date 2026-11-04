@@ -47,6 +47,8 @@ O documento do squad reúne a definição do produto, público-alvo proposto (pe
 
 ➡️ [Consultar Entregáveis do Produto e Contrato BDD](docs/ENTREGAVEIS_E_BDD.md)
 
+**Quadro de tarefas:** [CodeRank — Backlog do MVP no Trello](https://trello.com/b/fF1h14Cc/coderank-backlog-do-mvp)
+
 O backlog de implementação está registrado nas [GitHub Issues](https://github.com/alveslim/CodeRank/issues).
 
 ---
