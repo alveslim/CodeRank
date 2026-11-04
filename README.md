@@ -41,6 +41,16 @@ Assista abaixo à gravação do CodeRank em funcionamento:
 
 ---
 
+## 📋 Entregáveis, escopo e critérios de aceite
+
+O documento do squad reúne a definição do produto, público-alvo proposto (pendente de validação), escopo do MVP, critérios de aceite, checklist de entregáveis e cenários BDD em Gherkin.
+
+➡️ [Consultar Entregáveis do Produto e Contrato BDD](docs/ENTREGAVEIS_E_BDD.md)
+
+O backlog de implementação está registrado nas [GitHub Issues](https://github.com/alveslim/CodeRank/issues).
+
+---
+
 ## 🧠 Arquitetura do Sistema
 
 O sistema é distribuído entre o Frontend (Flet), Backend (Lógica de contêineres na Vercel) e Banco de Dados (Supabase).
