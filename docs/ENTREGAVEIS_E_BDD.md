@@ -82,6 +82,14 @@ As Issues do GitHub são a fonte de acompanhamento das tarefas. Cada Issue deve 
 | Navegação e estados da UI | Rotas válidas; erros/loading/empty states visíveis; navegação de grupo corrigida | [#12](../issues/12) |
 | Qualidade e CI | Testes de unidade/integração; workflow executa em PR; instruções de teste atualizadas | [#13](../issues/13) |
 
+## 3.1 Quadro de acompanhamento no Trello
+
+O backlog também está espelhado no Trello, com um cartão por Issue do GitHub e uma checklist marcável de critérios de aceite em cada cartão.
+
+**[Abrir quadro CodeRank — Backlog do MVP](https://trello.com/b/fF1h14Cc/coderank-backlog-do-mvp)**
+
+Listas do fluxo: Backlog, Pronto para desenvolvimento, Em andamento, Em revisão e Concluído. Os cartões estão inicialmente no Backlog; mova-os conforme o trabalho avançar e marque os critérios à medida que forem validados.
+
 ### Definition of Done (DoD)
 Uma tarefa só pode ser marcada como concluída quando:
 - [ ] Todos os critérios de aceite da Issue forem atendidos.
