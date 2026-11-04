@@ -35,7 +35,9 @@ O **CodeRank** é uma aplicação educacional desenvolvida em Flet que permite a
 ### Sistema em Ação
 Assista abaixo à gravação do CodeRank em funcionamento:
 
-<video src="https://github.com/user-attachments/assets/42e6dbaf-9775-4348-bada-ea00889ce9f2" controls="controls" width="100%"></video>
+<video src="
+https://github.com/user-attachments/assets/7eae0bb2-62b0-479d-8dda-b233802af0e1
+" controls="controls" width="100%"></video>
     </td>
 </table>
 
