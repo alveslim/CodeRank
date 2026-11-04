@@ -70,17 +70,17 @@ As Issues do GitHub são a fonte de acompanhamento das tarefas. Cada Issue deve 
 
 | Entrega | Critérios de aceite resumidos | Issue |
 |---|---|---|
-| Banco de dados e segurança | Tabelas versionadas; chaves e relacionamentos; políticas de acesso por usuário/grupo; instruções de setup | A publicar |
-| Autenticação | Cadastro/login/logout reais; validação de sessão; erros apresentados sem expor detalhes internos | A publicar |
-| Catálogo de desafios | Desafios e casos de teste persistidos; listagem vem do banco; dados inválidos/inativos não são oferecidos | A publicar |
-| Executor e avaliação | Execução isolada; timeout e limites de saída; comparação de casos de teste; resultado padronizado | A publicar |
-| Arquitetura do executor | Aplicação web não depende de Docker Engine local no ambiente serverless; serviço de execução tem contrato autenticado | A publicar |
-| Grupos e convites | Criar/listar grupos persistidos; códigos únicos; entrada válida; código inválido gera retorno claro | A publicar |
-| Permissões de grupo | Apenas administrador executa ações administrativas; remoção persistida; interface atualiza a lista | A publicar |
-| Perfil e histórico | Dados carregados do usuário autenticado; edição persistida; histórico obtido das submissões reais | A publicar |
-| Ranking | Pontos derivados de submissões aceitas; ordenação decrescente; desempate documentado; sem posições repetidas | A publicar |
-| Navegação e estados da UI | Rotas válidas; erros/loading/empty states visíveis; navegação de grupo corrigida | A publicar |
-| Qualidade e CI | Testes de unidade/integração; workflow executa em PR; instruções de teste atualizadas | A publicar |
+| Banco de dados e segurança | Tabelas versionadas; chaves e relacionamentos; políticas de acesso por usuário/grupo; instruções de setup | [#2](../issues/2) |
+| Autenticação | Cadastro/login/logout reais; validação de sessão; erros apresentados sem expor detalhes internos | [#3](../issues/3) |
+| Catálogo de desafios | Desafios e casos de teste persistidos; listagem vem do banco; dados inválidos/inativos não são oferecidos | [#4](../issues/4) |
+| Executor e avaliação | Execução isolada; timeout e limites de saída; comparação de casos de teste; resultado padronizado | [#5](../issues/5) · [#7](../issues/7) |
+| Arquitetura do executor | Aplicação web não depende de Docker Engine local no ambiente serverless; serviço de execução tem contrato autenticado | [#6](../issues/6) |
+| Grupos e convites | Criar/listar grupos persistidos; códigos únicos; entrada válida; código inválido gera retorno claro | [#8](../issues/8) |
+| Permissões de grupo | Apenas administrador executa ações administrativas; remoção persistida; interface atualiza a lista | [#9](../issues/9) |
+| Perfil e histórico | Dados carregados do usuário autenticado; edição persistida; histórico obtido das submissões reais | [#10](../issues/10) |
+| Ranking | Pontos derivados de submissões aceitas; ordenação decrescente; desempate documentado; sem posições repetidas | [#11](../issues/11) |
+| Navegação e estados da UI | Rotas válidas; erros/loading/empty states visíveis; navegação de grupo corrigida | [#12](../issues/12) |
+| Qualidade e CI | Testes de unidade/integração; workflow executa em PR; instruções de teste atualizadas | [#13](../issues/13) |
 
 ### Definition of Done (DoD)
 Uma tarefa só pode ser marcada como concluída quando:
