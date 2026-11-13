@@ -7,7 +7,7 @@ def tela_grupo(page: ft.Page, navegar):
 
     def voltar(e):
         # A rota "grupos" deve ser a que renderiza o lobby (tela_grupos)
-        navegar("grupos") 
+        navegar("lobby_grupos") 
 
     def abrir_desafio(e):
         # Vai para a tela do editor resolver o problema (ex: Two Sum)
