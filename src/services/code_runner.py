@@ -223,7 +223,6 @@ def run_code(
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            bufsize=0,
             creationflags=creation_flags,
         )
     except FileNotFoundError as exc:
