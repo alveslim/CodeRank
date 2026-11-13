@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from src.services.code_runner import (
     MAX_OUTPUT_BYTES,
+    MAX_SOURCE_BYTES,
     OUTPUT_TRUNCATED_MESSAGE,
     _build_command,
     run_code,
@@ -67,7 +68,7 @@ class CodeRunnerTests(unittest.TestCase):
 
     def test_rejects_source_over_50_kb(self):
         with self.assertRaisesRegex(ValueError, "50 KB"):
-            run_code("python", "x" * (MAX_OUTPUT_BYTES + 1))
+            run_code("python", "x" * (MAX_SOURCE_BYTES + 1))
 
     def test_rejects_invalid_timeout(self):
         for timeout in (0, 31, 1.5, True):
