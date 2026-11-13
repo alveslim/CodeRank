@@ -2,11 +2,11 @@ import flet as ft
 
 def tela_perfil(page: ft.Page, navegar):
     # Simulando variáveis iniciais
-    cidade_usuario = "Manaus"
-    uf_usuario = "AM"
-    nome_usuario = "Flávio Alves"
-    curso_usuario = "Engenharia de Software"
-    faculdade = "FAMETRO"
+    cidade_usuario = "Cidade de Exemplo"
+    uf_usuario = "UF"
+    nome_usuario = "Usuário de Demonstração"
+    curso_usuario = "Curso de Exemplo"
+    faculdade = "Instituição de Exemplo"
 
     # --- 1. Elementos de Texto Dinâmicos ---
     # Precisamos separá-los em variáveis para poder alterar o .value depois
@@ -93,9 +93,9 @@ def tela_perfil(page: ft.Page, navegar):
 
     # Lista rolável do histórico
     lista_historico = ft.Column([
-        criar_card_historico("1. Two Sum", "28 Set 2026", "Aceito"),
-        criar_card_historico("2. Validador de Senhas", "27 Set 2026", "Erro (Tempo)"),
-        criar_card_historico("1. Two Sum", "27 Set 2026", "Erro (Sintaxe)", "Java"),
+        criar_card_historico("Soma simples", "Data ilustrativa", "Aceito"),
+        criar_card_historico("Validador de exemplo", "Data ilustrativa", "Erro (Tempo)"),
+        criar_card_historico("Exemplo Java", "Data ilustrativa", "Erro (Sintaxe)", "Java"),
     ], scroll=ft.ScrollMode.AUTO, height=220) # A altura fixa garante que o perfil não "estoure" a tela
 
     # --- 4. Estatísticas e Botão Sair ---
@@ -122,7 +122,7 @@ def tela_perfil(page: ft.Page, navegar):
     # --- 5. Montagem Final da Tela ---
     return ft.Container(
         content=ft.Column([
-            ft.Text("O Meu Perfil", size=28, weight=ft.FontWeight.BOLD),
+            ft.Text("Perfil — demonstração", size=28, weight=ft.FontWeight.BOLD),
             ft.Divider(height=20, color=ft.Colors.TRANSPARENT),
             
             # Cabeçalho do Perfil (agora com o botão de editar ao lado do nome)

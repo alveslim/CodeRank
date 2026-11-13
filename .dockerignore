@@ -3,7 +3,12 @@
 .venv
 **/__pycache__
 **/*.pyc
-credentials.json
+.env
+.env.*
+!/.env.example
+credentials*.json
+*.pem
+*.key
 README.md
 src
 tests

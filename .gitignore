@@ -1,27 +1,30 @@
-# 1. Variáveis de Ambiente e Segredos (MUITO IMPORTANTE)
+# Environment variables and secrets
 .env
+.env.*
+!.env.example
+credentials*.json
+*.pem
+*.key
 
-# 2. Ambientes Virtuais Python (São muito pesados, o GitHub não precisa disto)
+# Python environments and generated files
 .venv/
 venv/
 env/
-
-# 3. Ficheiros de Base de Dados Local (O nosso antigo SQLite)
-*.db
-*.sqlite3
-
-# 4. Ficheiros compilados e lixo do Python
 __pycache__/
 *.py[cod]
 *$py.class
 
-# 5. Ficheiros de configuração do Editor de Código e SO
+# Local databases
+*.db
+*.sqlite3
+
+# IDE and OS files
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
 
-# 6. Relatórios gerados localmente (para não encher o repositório com Excels de teste)
+# Local reports and generated data
 *.xlsx
 *.csv
 *.pdf

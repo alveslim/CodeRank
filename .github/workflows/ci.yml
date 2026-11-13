@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - main
+      - "fix/**"
+      - "feat/**"
+
+permissions:
+  contents: read
+
+jobs:
+  python-tests:
+    name: Python tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+
+      - name: Compile Python modules
+        run: python -m compileall -q main.py src tests
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+  docker-sandbox:
+    name: Docker sandbox smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Python sandbox image
+        run: docker build -f sandbox-images/Dockerfile.python -t coderank-python:ci .
+
+      - name: Test Python sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$(printf '%s\n' 'print("sandbox python ok")' | docker run --rm -i --init --user 10001:10001 --network none --memory 128m --memory-swap 128m --cpus 0.5 --pids-limit 64 --ulimit nofile=64:64 --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges:true coderank-python:ci)"
+          test "$output" = "sandbox python ok"
+
+      - name: Build Java sandbox image
+        run: docker build -f sandbox-images/Dockerfile.java -t coderank-java:ci .
+
+      - name: Test Java sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          source='public class Main { public static void main(String[] args) { System.out.println("sandbox java ok"); } }'
+          output="$(printf '%s\n' "$source" | docker run --rm -i --init --user 10001:10001 --network none --memory 256m --memory-swap 256m --cpus 0.5 --pids-limit 64 --ulimit nofile=64:64 --read-only --tmpfs /tmp:rw,noexec,nosuid,size=128m,mode=1777 --cap-drop ALL --security-opt no-new-privileges:true coderank-java:ci)"
+          test "$output" = "sandbox java ok"

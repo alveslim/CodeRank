@@ -7,7 +7,7 @@ def tela_grupo(page: ft.Page, navegar):
 
     def voltar(e):
         # A rota "grupos" deve ser a que renderiza o lobby (tela_grupos)
-        navegar("grupos") 
+        navegar("lobby_grupos") 
 
     def abrir_desafio(e):
         # Vai para a tela do editor resolver o problema (ex: Two Sum)
@@ -99,9 +99,9 @@ def tela_grupo(page: ft.Page, navegar):
         )
 
     lista_membros = ft.Column([
-        criar_card_membro(1, "Flávio Alves", 1100, is_admin=True),
-        criar_card_membro(2, "Lourenço Braga", 850),
-        criar_card_membro(3, "Maria Cecilia", 300),
+        criar_card_membro(1, "Admin Demo", 1100, is_admin=True),
+        criar_card_membro(2, "Membro Python", 850),
+        criar_card_membro(3, "Membro Java", 300),
     ], scroll=ft.ScrollMode.AUTO)
 
 # --- Estrutura das Abas ---

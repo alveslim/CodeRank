@@ -1,197 +1,117 @@
-<p align="center">
-<h1 align="center">🚀 CodeRank: Plataforma Competitiva de Programação</h1>
+# CodeRank — Plataforma de desafios de programação
 
 <p align="center">
-  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.13-blue.svg" alt="Python"></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.13-blue.svg" alt="Python 3.13"></a>
   <a href="https://flet.dev/"><img src="https://img.shields.io/badge/Flet-UI_Framework-2D3342?logo=flet" alt="Flet"></a>
   <a href="https://www.docker.com/"><img src="https://img.shields.io/badge/Docker-Sandbox_Execution-2496ED?logo=docker" alt="Docker"></a>
-  <a href="https://supabase.com/"><img src="https://img.shields.io/badge/Supabase-Database_&_Auth-3ECF8E?logo=supabase" alt="Supabase"></a>
-  <a href="https://vercel.com/"><img src="https://img.shields.io/badge/Vercel-Hosting-000000?logo=vercel" alt="Vercel"></a>
-<br>
+  <a href="https://github.com/alveslim/CodeRank/actions/workflows/ci.yml"><img src="https://github.com/alveslim/CodeRank/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+</p>
 
-O **CodeRank** é uma aplicação educacional desenvolvida em Flet que permite aos usuários competir e resolver desafios de programação. 
+O **CodeRank** é um protótipo de plataforma educacional para praticar programação por meio de desafios, editor de código, grupos e ranking. A interface é construída com Flet e o executor local suporta Python e Java em contêineres Docker descartáveis.
 
-🌟 **O Nosso Diferencial:** O sistema conta com um motor de **execução isolada de código (Sandbox)**. Em vez de rodar submissões em um ambiente aberto, o código do usuário é enviado para contêineres Docker descartáveis, sem acesso à rede, com recursos controlados e sistema de arquivos bloqueado. Isso garante uma avaliação segura contra códigos maliciosos.
-
----
-
-## 📸 Demonstração do Sistema
-
-### Telas da Aplicação
-<!-- Arraste as imagens (Login, Desafios, Grupos) aqui e deixe o link que o GitHub gerar -->
 ![Tela de Login do CodeRank](https://github.com/user-attachments/assets/f8df486e-8ebc-4498-8df4-6e34c50e69a0)
 
-### Sistema em Ação
+## Estado atual do projeto
 
-<table align="center">
-  <tr>
-    <th align="center"> Resolução de Desafios </th>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
-      <!-- Quando tiver o vídeo do sistema rodando, substitua o link falso abaixo pelo real -->
-      ## 📸 Demonstração do Sistema
+A branch `main` contém um protótipo funcional de interface e um executor local isolado. Ainda existem funcionalidades demonstrativas que **não devem ser confundidas com serviços prontos para produção**:
 
-### Sistema em Ação
-Assista abaixo à gravação do CodeRank em funcionamento:
+- Cadastro e login ainda não estão conectados a um provedor de autenticação.
+- Desafios, perfil, histórico, grupos e ranking ainda usam dados locais/estáticos.
+- A avaliação automática de submissões com casos de teste e a persistência ainda não foram conectadas na `main`.
+- O arquivo `schema.sql` está reservado para a modelagem do banco, mas ainda não contém uma migração.
+- O executor Docker é iniciado pela aplicação local. A arquitetura atual não executa contêineres dentro de funções serverless da Vercel.
 
-<video src="
-https://github.com/user-attachments/assets/7eae0bb2-62b0-479d-8dda-b233802af0e1
-" controls="controls" width="100%"></video>
-    </td>
-</table>
+A interface permite explorar o protótipo sem login. A tela de login informa explicitamente que a autenticação não está integrada.
 
----
+## Arquitetura atual
 
-## 📋 Entregáveis, escopo e critérios de aceite
-
-O documento do squad reúne a definição do produto, público-alvo proposto (pendente de validação), escopo do MVP, critérios de aceite, checklist de entregáveis e cenários BDD em Gherkin.
-
-➡️ [Consultar Entregáveis do Produto e Contrato BDD](docs/ENTREGAVEIS_E_BDD.md)
-
-**Quadro de tarefas:** [CodeRank — Backlog do MVP no Trello](https://trello.com/b/fF1h14Cc/coderank-backlog-do-mvp)
-
-O backlog de implementação está registrado nas [GitHub Issues](https://github.com/alveslim/CodeRank/issues).
-
----
-
-## 🧠 Arquitetura do Sistema
-
-O sistema é distribuído entre o Frontend (Flet), Backend (Lógica de contêineres na Vercel) e Banco de Dados (Supabase).
+A aplicação Flet e o Docker Engine precisam estar disponíveis na máquina em que o CodeRank é executado. Cada submissão é enviada pela entrada padrão para uma imagem previamente construída.
 
 ```mermaid
-graph TD
-    subgraph Frontend [Hospedagem Frontend - Vercel]
-        F[Interface Web<br>Flet]
-    end
-
-    subgraph Backend [Motor Lógico - Vercel]
-        A{API Rest / Lógica<br>Validação e Roteamento}
-        
-        subgraph Sandbox [Execução Isolada]
-            D[Docker Engine]
-            P[Contêiner Python<br>Descartável]
-            J[Contêiner Java<br>Descartável]
-            D --> P
-            D --> J
-        end
-    end
-
-    subgraph Database [BaaS - Supabase]
-        DB[(PostgreSQL<br>Dados e Auth)]
-    end
-
-    F -->|Login / Busca Problemas| DB
-    F -->|Envia Código para Avaliação| A
-    A -->|Roda código sem privilégios| D
-    A -->|Atualiza Status Aceito/Falha| DB
-    
-    style D fill:#2496ED,stroke:#fff,stroke-width:2px,color:#fff
-    style DB fill:#3ECF8E,stroke:#fff,stroke-width:2px,color:#000
+flowchart TD
+    U[Usuário] --> F[Aplicação Flet local]
+    F --> R[Serviço code_runner]
+    R --> D[Docker Engine local]
+    D --> P[Contêiner Python descartável]
+    D --> J[Contêiner Java descartável]
+    P --> O[stdout e stderr limitados]
+    J --> O
 ```
 
-## Diagrama de Classes (UML)
+O executor aplica, entre outros controles:
 
-O modelo estrutural abaixo representa os objetos, atributos e métodos projetados para a camada de aplicação do sistema, guiando o desenvolvimento da interface e as integrações.
+- Rede desabilitada.
+- Usuário não privilegiado e remoção de capabilities.
+- Sistema de arquivos somente leitura, com `/tmp` temporário limitado.
+- Limites de memória, CPU, processos e descritores.
+- Timeout de execução e remoção forçada do contêiner.
+- Limite de tamanho do código e coleta limitada da saída.
 
-## Modelagem do Banco de Dados
+Essas proteções reduzem a superfície de ataque, mas não substituem uma revisão de segurança independente antes de executar código de terceiros em produção.
 
-O banco de dados relacional utiliza PostgreSQL (hospedado no Supabase), sendo integrado diretamente com o auth.users do Supabase para gestão de identidade.
+## Pré-requisitos
 
-```mermaid
-erDiagram
-    USERS ||--o{ SUBMISSIONS : "realiza"
-    PROBLEMS ||--o{ SUBMISSIONS : "recebe"
+- Python 3.13.
+- Docker Desktop ou Docker Engine em execução.
+- Docker Compose (opcional, para construir as imagens pelo arquivo de composição).
 
-    USERS {
-        UUID id PK "REFERENCES auth.users"
-        VARCHAR username UK
-        INTEGER global_score
-        TIMESTAMP created_at
-    }
+## Configuração local
 
-    PROBLEMS {
-        SERIAL id PK
-        VARCHAR title
-        TEXT description
-        VARCHAR difficulty
-        TIMESTAMP created_at
-    }
+No PowerShell, a partir da raiz do projeto:
 
-    SUBMISSIONS {
-        UUID id PK
-        UUID user_id FK
-        INTEGER problem_id FK
-        VARCHAR language
-        TEXT code
-        VARCHAR status "Pending, Accepted, Wrong Answer, etc"
-        TIMESTAMP created_at
-    }
-```
-## ⚙️ Como o Sandbox (Execução Isolada) Funciona?
-
-### O editor envia o código pela entrada padrão (stdin) para um contêiner novo e descartável. Para garantir total segurança, cada execução possui as seguintes travas:
-
-    Usa uma imagem previamente construída, sem montar diretórios da máquina host.
-
-    Não possui acesso à rede (--network none).
-
-    Executa com usuário sem privilégios e todas as capabilities removidas.
-
-    Usa sistema de arquivos somente leitura, exceto por uma área temporária muito limitada (--tmpfs).
-
-    Possui limites rígidos de CPU, memória, processos, tamanho do código e tempo de execução.
-
-    Destrói o contêiner automaticamente ao finalizar ou exceder o timeout.
-
-    Nota: O Python é executado com o interpretador em modo isolado. O Java exige uma classe pública chamada Main e é compilado com Java 21 antes da execução.
-
-## 🚀 Configuração e Execução Local
-### Pré-requisitos
-
-    Python 3.13 ou superior
-
-    Docker Desktop com o motor Docker em execução
-
-## Preparando o Ambiente
-
-### No PowerShell, a partir da raiz do projeto, execute:
-
-```
-# Cria e ativa o ambiente virtual
+```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-
-# Instala as dependências
 python -m pip install -r requirements.txt
 
-# Constrói as imagens locais do Sandbox
+# Constrói as imagens usadas pelo executor
 docker compose build
 
-# Inicia a aplicação
+# Inicia a interface
 python main.py
 ```
 
-O comando docker compose build é crucial, pois cria as duas imagens base usadas nas avaliações:
+No Linux/macOS, ative o ambiente com:
 
-    coderank-python:latest
+```bash
+source .venv/bin/activate
+```
 
-    coderank-java:latest
+As imagens são criadas com estes nomes:
+
+- `coderank-python:latest`
+- `coderank-java:latest`
+
+Não é necessário iniciar os serviços do Compose: o comando `docker compose build` apenas constrói as imagens. A aplicação cria contêineres efêmeros sob demanda.
 
 ## Testes
 
-### Os testes unitários da aplicação não precisam do motor Docker rodando:
+Os testes unitários não precisam de Docker:
 
-```
+```bash
 python -m unittest discover -s tests -v
 ```
-Para conferir manualmente as imagens isoladas depois de iniciar o Docker Desktop:
 
-## Teste Python:
+A integração contínua também verifica a compilação dos módulos Python e constrói/testa as imagens Python e Java em um runner Linux com Docker.
+
+## Demonstração manual do sandbox
+
+Python:
+
+```bash
+printf 'print("sandbox python ok")\n' | docker run --rm -i --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m coderank-python:latest
 ```
-echo 'print("sandbox python ok")' | docker run --rm -i --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m coderank-python:latest
+
+Java:
+
+```bash
+printf '%s\n' 'public class Main { public static void main(String[] args) { System.out.println("sandbox java ok"); } }' | docker run --rm -i --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=128m coderank-java:latest
 ```
-## Teste Java:
-```
-echo 'public class Main { public static void main(String[] args) { System.out.println("sandbox java ok"); } }' | docker run --rm -i --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=128m coderank-java:latest
-```
+
+## Documentação do produto
+
+O documento do squad reúne escopo proposto, critérios de aceite e cenários BDD. A presença de uma tela no protótipo não significa que a funcionalidade esteja integrada ou concluída.
+
+- [Entregáveis do produto e contrato BDD](docs/ENTREGAVEIS_E_BDD.md)
+- [Issues do repositório](https://github.com/alveslim/CodeRank/issues)
+
