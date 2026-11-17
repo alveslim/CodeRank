@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "uv venv .venv && uv pip install --python .venv/bin/python 'flet[cli]==1.0.2'",
-  "buildCommand": ".venv/bin/flet build web --route-url-strategy hash",
+  "buildCommand": "yes | .venv/bin/flet build web --route-url-strategy hash",
   "outputDirectory": "build/web"
 }
