@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 import subprocess
+import sys
 import threading
 import uuid
 from typing import BinaryIO
@@ -49,6 +50,23 @@ SANDBOXES = {
         tmpfs_size="128m",
     ),
 }
+
+
+WEB_UNAVAILABLE_MESSAGE = (
+    "A execução de código não está disponível na versão web (hospedada). "
+    "Ela exige o Docker local: rode o CodeRank na sua máquina com "
+    "`python main.py` para executar submissões."
+)
+
+
+def execution_available() -> bool:
+    """Indica se este ambiente consegue iniciar processos (Docker).
+
+    No build web do Flet o Python roda no navegador via Pyodide
+    (``sys.platform == "emscripten"``), sem subprocessos nem threads.
+    """
+
+    return sys.platform != "emscripten"
 
 
 def _build_command(
@@ -191,6 +209,9 @@ def run_code(
     descartando bytes excedentes. Assim, uma submissão que imprime sem parar não
     consegue fazer o processo hospedeiro acumular saída ilimitada em memória.
     """
+
+    if not execution_available():
+        raise RuntimeError(WEB_UNAVAILABLE_MESSAGE)
 
     if not isinstance(language, str):
         raise ValueError("Informe uma linguagem suportada.")
