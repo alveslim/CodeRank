@@ -2,7 +2,11 @@ import asyncio
 
 import flet as ft
 
-from src.services.code_runner import run_code
+from src.services.code_runner import (
+    WEB_UNAVAILABLE_MESSAGE,
+    execution_available,
+    run_code,
+)
 
 
 EXAMPLES = {
@@ -61,6 +65,12 @@ def tela_editor(page: ft.Page):
     linguagem.on_select = trocar_linguagem
 
     async def executar_codigo():
+        if not execution_available():
+            saida.value = WEB_UNAVAILABLE_MESSAGE
+            saida.color = ft.Colors.AMBER_300
+            page.update()
+            return
+
         botao_executar.disabled = True
         progresso.visible = True
         saida.value = "Executando em contêiner isolado..."

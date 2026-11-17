@@ -142,3 +142,15 @@ class CodeRunnerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WebEnvironmentTests(unittest.TestCase):
+    def test_run_code_is_disabled_under_pyodide(self):
+        from unittest import mock
+
+        from src.services import code_runner
+
+        with mock.patch.object(code_runner.sys, "platform", "emscripten"):
+            self.assertFalse(code_runner.execution_available())
+            with self.assertRaises(RuntimeError):
+                code_runner.run_code("python", "print(1)")

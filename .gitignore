@@ -28,3 +28,7 @@ Thumbs.db
 *.xlsx
 *.csv
 *.pdf
+
+# Flet build output
+build/
+.vercel/
