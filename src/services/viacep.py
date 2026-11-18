@@ -7,6 +7,8 @@ import re
 
 import requests
 
+from src.services.http import fetch_json
+
 
 logger = logging.getLogger(__name__)
 CEP_PATTERN = re.compile(r"^\d{5}-?\d{3}$")
@@ -43,4 +45,20 @@ def consultar_cep(cep: str) -> dict | None:
     if not isinstance(dados, dict) or str(dados.get("erro", "")).lower() == "true":
         return None
 
+    return dados
+
+
+async def consultar_cep_async(cep: str) -> dict | None:
+    """Versão assíncrona (funciona no navegador). Mesmas regras de ``consultar_cep``."""
+
+    if not isinstance(cep, str):
+        return None
+    cep_normalizado = cep.strip()
+    if not CEP_PATTERN.fullmatch(cep_normalizado):
+        return None
+    status, dados = await fetch_json(
+        "GET", f"https://viacep.com.br/ws/{cep_normalizado.replace('-', '')}/json/", timeout=8
+    )
+    if status != 200 or not isinstance(dados, dict) or str(dados.get("erro", "")).lower() == "true":
+        return None
     return dados

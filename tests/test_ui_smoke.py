@@ -30,6 +30,10 @@ class FakePage:
     def add(self, *controls):
         self.controls.extend(controls)
 
+    def run_task(self, handler, *args, **kwargs):
+        # As telas agendam o carregamento de dados; nos testes não há loop nem rede.
+        self.scheduled = getattr(self, "scheduled", []) + [handler]
+
 
 class UISmokeTests(unittest.TestCase):
     def setUp(self):
@@ -41,7 +45,7 @@ class UISmokeTests(unittest.TestCase):
             ("login", lambda: tela_login(self.page, self.navigate)),
             ("cadastro", lambda: tela_cadastro(self.page, self.navigate)),
             ("desafios", lambda: tela_desafios(self.page, self.navigate)),
-            ("editor", lambda: tela_editor(self.page)),
+            ("editor", lambda: tela_editor(self.page, self.navigate)),
             ("grupos", lambda: tela_grupos(self.page, self.navigate)),
             ("grupo", lambda: tela_grupo(self.page, self.navigate)),
             ("perfil", lambda: tela_perfil(self.page, self.navigate)),
