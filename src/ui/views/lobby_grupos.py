@@ -1,73 +1,107 @@
 import re
-import secrets
 
 import flet as ft
 
+from src import state
+from src.services import api
+from src.ui.helpers import botao, cartao, carregando, mensagem_erro, sessao_expirada
+
+
+def _codigo(grupo_id: int) -> str:
+    return f"{grupo_id:05d}"
+
 
 def tela_grupos(page: ft.Page, navegar):
-    # Estado apenas local para permitir demonstrar o fluxo sem backend.
-    grupos_disponiveis = {
-        "21910": "Grupo 1",
-        "84729": "Equipe Python",
-    }
-
-    nome_grupo_input = ft.TextField(label="Nome do Grupo", width=300, autofocus=True)
-    desc_grupo_input = ft.TextField(
-        label="Descrição (Opcional)",
-        width=300,
-        multiline=True,
-    )
+    nome_grupo_input = ft.TextField(label="Nome do Grupo", width=300, autofocus=True, max_length=40)
+    desc_grupo_input = ft.TextField(label="Descrição (opcional)", width=300, multiline=True, max_length=200)
+    erro_modal = ft.Text("", color=ft.Colors.RED_300)
     feedback_codigo = ft.Text("", color=ft.Colors.RED_300)
+    lista_grupos = ft.Column([carregando()], scroll=ft.ScrollMode.AUTO, expand=True)
 
-    def abrir_grupo(e):
-        navegar("grupo")
+    def abrir_grupo(grupo_id: int):
+        def _abrir(e):
+            state.session.selected_group = grupo_id
+            navegar("grupo")
+
+        return _abrir
+
+    def entrar_no_grupo(grupo_id: int):
+        async def _entrar():
+            try:
+                await api.post(f"/groups/{grupo_id}/join")
+            except Exception as exc:  # noqa: BLE001
+                if sessao_expirada(exc, navegar):
+                    return
+                feedback_codigo.color = ft.Colors.RED_300
+                feedback_codigo.value = mensagem_erro(exc)
+                page.update()
+                return
+            state.session.selected_group = grupo_id
+            navegar("grupo")
+
+        return lambda e: page.run_task(_entrar)
+
+    def card_grupo(g: dict):
+        info = f"Código: {_codigo(g['id'])} • {g['members']} membro(s)"
+        textos = [
+            ft.Text(g["name"], weight=ft.FontWeight.BOLD, size=16),
+            ft.Text(info, color=ft.Colors.GREY_400, size=12),
+        ]
+        if g.get("description"):
+            textos.append(ft.Text(g["description"], color=ft.Colors.GREY_400, size=12))
+        acao = (
+            botao("ABRIR", abrir_grupo(g["id"]))
+            if g["member"]
+            else botao("ENTRAR", entrar_no_grupo(g["id"]), ft.Colors.GREEN_700)
+        )
+        return cartao(ft.Row([ft.Column(textos, spacing=2, expand=True), acao], alignment=ft.MainAxisAlignment.SPACE_BETWEEN))
+
+    async def carregar():
+        try:
+            dados = await api.get("/groups")
+        except Exception as exc:  # noqa: BLE001
+            if sessao_expirada(exc, navegar):
+                return
+            lista_grupos.controls = [ft.Text(mensagem_erro(exc), color=ft.Colors.RED_300)]
+            page.update()
+            return
+        lista_grupos.controls = [card_grupo(g) for g in dados["groups"]] or [
+            ft.Text("Nenhum grupo ainda. Crie o primeiro!", color=ft.Colors.GREY_400)
+        ]
+        page.update()
 
     def fechar_modal(e):
         modal_criar_grupo.open = False
         page.update()
 
-    def gerar_codigo_unico() -> str:
-        while True:
-            codigo = f"{secrets.randbelow(100000):05d}"
-            if codigo not in grupos_disponiveis:
-                return codigo
-
-    def confirmar_criacao(e):
+    async def confirmar_criacao():
         nome = (nome_grupo_input.value or "").strip()
-        if not nome:
-            nome_grupo_input.error_text = "O nome do grupo é obrigatório."
-            page.update()
-            return
-
-        if len(nome) > 50:
-            nome_grupo_input.error_text = "O nome deve ter no máximo 50 caracteres."
-            page.update()
-            return
-
-        codigo_gerado = gerar_codigo_unico()
-        descricao = (desc_grupo_input.value or "").strip()
-        grupos_disponiveis[codigo_gerado] = nome
-
-        lista_grupos.controls.insert(
-            0,
-            criar_card_grupo(nome, codigo_gerado, descricao),
-        )
-        nome_grupo_input.value = ""
         nome_grupo_input.error_text = None
+        erro_modal.value = ""
+        if len(nome) < 3:
+            nome_grupo_input.error_text = "O nome deve ter pelo menos 3 caracteres."
+            page.update()
+            return
+        try:
+            r = await api.post("/groups", {"name": nome, "description": (desc_grupo_input.value or "").strip()})
+        except Exception as exc:  # noqa: BLE001
+            if sessao_expirada(exc, navegar):
+                return
+            erro_modal.value = mensagem_erro(exc)
+            page.update()
+            return
+        nome_grupo_input.value = ""
         desc_grupo_input.value = ""
         modal_criar_grupo.open = False
-        page.update()
+        state.session.selected_group = r["group"]["id"]
+        navegar("grupo")
 
     modal_criar_grupo = ft.AlertDialog(
-        title=ft.Text("Criar Novo Grupo", weight=ft.FontWeight.BOLD),
-        content=ft.Column([
-            ft.Text("Os dados serão mantidos somente nesta demonstração local."),
-            nome_grupo_input,
-            desc_grupo_input,
-        ], tight=True),
+        title=ft.Text("Criar novo grupo", weight=ft.FontWeight.BOLD),
+        content=ft.Column([nome_grupo_input, desc_grupo_input, erro_modal], tight=True),
         actions=[
             ft.TextButton("Cancelar", on_click=fechar_modal),
-            ft.Button("Criar Grupo", on_click=confirmar_criacao),
+            ft.Button("Criar grupo", on_click=lambda e: page.run_task(confirmar_criacao)),
         ],
         actions_alignment=ft.MainAxisAlignment.END,
         shape=ft.RoundedRectangleBorder(radius=8),
@@ -79,105 +113,43 @@ def tela_grupos(page: ft.Page, navegar):
         modal_criar_grupo.open = True
         page.update()
 
-    def entrar_por_codigo(e):
-        codigo = (campo_codigo.value or "").strip()
-        feedback_codigo.color = ft.Colors.RED_300
-
-        if not re.fullmatch(r"\d{5}", codigo):
-            feedback_codigo.value = "Informe um código de convite com 5 dígitos."
-        elif codigo not in grupos_disponiveis:
-            feedback_codigo.value = "Código não encontrado nesta demonstração local."
-        else:
-            feedback_codigo.value = f"Grupo encontrado: {grupos_disponiveis[codigo]}"
-            feedback_codigo.color = ft.Colors.GREEN_300
-            navegar("grupo")
-
-        page.update()
-
     campo_codigo = ft.TextField(
-        label="Código de Convite",
+        label="Código do grupo",
         width=200,
         height=45,
         bgcolor=ft.Colors.GREY_900,
         content_padding=10,
         max_length=5,
     )
-    botao_entrar_codigo = ft.Container(
-        content=ft.Text("Entrar", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
-        on_click=entrar_por_codigo,
-        bgcolor=ft.Colors.GREEN_700,
-        height=45,
-        padding=ft.Padding.symmetric(horizontal=20),
-        alignment=ft.Alignment.CENTER,
-        border_radius=5,
-        ink=True,
-    )
-    botao_criar = ft.Container(
-        content=ft.Row([
-            ft.Icon(ft.Icons.ADD, color=ft.Colors.WHITE, size=20),
-            ft.Text("Criar Grupo", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
-        ], alignment=ft.MainAxisAlignment.CENTER, spacing=5),
-        on_click=abrir_modal_criar,
-        bgcolor=ft.Colors.BLUE_700,
-        height=45,
-        padding=ft.Padding.symmetric(horizontal=15),
-        alignment=ft.Alignment.CENTER,
-        border_radius=5,
-        ink=True,
-    )
+
+    def entrar_por_codigo(e):
+        codigo = (campo_codigo.value or "").strip()
+        feedback_codigo.color = ft.Colors.RED_300
+        if not re.fullmatch(r"\d{1,5}", codigo):
+            feedback_codigo.value = "Informe o código numérico do grupo."
+            page.update()
+            return
+        feedback_codigo.value = ""
+        entrar_no_grupo(int(codigo))(e)
 
     secao_acoes = ft.Row([
-        botao_criar,
+        botao("Criar grupo", abrir_modal_criar, ft.Colors.BLUE_700, ft.Icons.ADD),
         ft.Column([
-            ft.Row([campo_codigo, botao_entrar_codigo], spacing=5),
+            ft.Row([campo_codigo, botao("Entrar", entrar_por_codigo, ft.Colors.GREEN_700)], spacing=5),
             feedback_codigo,
         ], spacing=2),
-    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, wrap=True)
 
-    def criar_card_grupo(nome, codigo, descricao=""):
-        textos = [
-            ft.Text(nome, weight=ft.FontWeight.BOLD, size=16),
-            ft.Text(f"Código: {codigo}", color=ft.Colors.WHITE_70, size=12),
-        ]
-        if descricao:
-            textos.append(ft.Text(descricao, color=ft.Colors.GREY_400, size=12))
-
-        return ft.Container(
-            content=ft.Row([
-                ft.Column(textos, spacing=2, expand=True),
-                ft.Container(
-                    content=ft.Text("ABRIR", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
-                    bgcolor=ft.Colors.BLUE_700,
-                    padding=10,
-                    border_radius=5,
-                    ink=True,
-                    on_click=abrir_grupo,
-                ),
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            padding=15,
-            bgcolor=ft.Colors.GREY_900,
-            border_radius=8,
-            border=ft.Border.all(1, ft.Colors.OUTLINE),
-            margin=ft.Margin.only(bottom=10),
-        )
-
-    lista_grupos = ft.Column([
-        criar_card_grupo("Grupo 1", "21910"),
-        criar_card_grupo("Equipe Python", "84729"),
-    ], scroll=ft.ScrollMode.AUTO, expand=True)
+    page.run_task(carregar)
 
     return ft.Container(
         content=ft.Column([
-            ft.Text("Meus Grupos — demonstração local", size=28, weight=ft.FontWeight.BOLD),
-            ft.Text(
-                "Criação e convites ainda não são persistidos em um backend.",
-                color=ft.Colors.AMBER_300,
-            ),
+            ft.Text("Grupos", size=28, weight=ft.FontWeight.BOLD),
             ft.Divider(height=10, color=ft.Colors.TRANSPARENT),
             secao_acoes,
             ft.Divider(height=20, color=ft.Colors.OUTLINE),
             lista_grupos,
-        ]),
+        ], expand=True),
         padding=20,
         expand=True,
     )

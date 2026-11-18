@@ -1,0 +1,14 @@
+{
+  // API do CodeRank. Segredo: npx wrangler secret put WORKER_SECRET
+  "name": "coderank-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "vars": {
+    "SUPABASE_URL": "https://hkczjbaqvqitceegvorl.supabase.co",
+    // Chave pública (anon) do Supabase; a proteção dos dados é feita por RLS.
+    "SUPABASE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrY3pqYmFxdnFpdGNlZWd2b3JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ1MDk5MDIsImV4cCI6MjExMDA4NTkwMn0.pRZ2fuBAceMrG_jEuGOrsXRsKtqIfgjLb-mqQjEjNe0"
+  },
+  "services": [{ "binding": "JUDGE", "service": "coderank-judge" }],
+  "ratelimits": [{ "name": "RATE", "namespace_id": "2001", "simple": { "limit": 30, "period": 60 } }]
+}

@@ -11,43 +11,38 @@ O **CodeRank** é um protótipo de plataforma educacional para praticar programa
 
 ![Tela de Login do CodeRank](https://github.com/user-attachments/assets/f8df486e-8ebc-4498-8df4-6e34c50e69a0)
 
-## Estado atual do projeto
-
-A branch `main` contém um protótipo funcional de interface e um executor local isolado. Ainda existem funcionalidades demonstrativas que **não devem ser confundidas com serviços prontos para produção**:
-
-- Cadastro e login ainda não estão conectados a um provedor de autenticação.
-- Desafios, perfil, histórico, grupos e ranking ainda usam dados locais/estáticos.
-- A avaliação automática de submissões com casos de teste e a persistência ainda não foram conectadas na `main`.
-- O arquivo `schema.sql` está reservado para a modelagem do banco, mas ainda não contém uma migração.
-- O executor Docker é iniciado pela aplicação local. A arquitetura atual não executa contêineres dentro de funções serverless da Vercel.
-
-A interface permite explorar o protótipo sem login. A tela de login informa explicitamente que a autenticação não está integrada.
-
-## Arquitetura atual
-
-A aplicação Flet e o Docker Engine precisam estar disponíveis na máquina em que o CodeRank é executado. Cada submissão é enviada pela entrada padrão para uma imagem previamente construída.
+## Como funciona
 
 ```mermaid
-flowchart TD
-    U[Usuário] --> F[Aplicação Flet local]
-    F --> R[Serviço code_runner]
-    R --> D[Docker Engine local]
-    D --> P[Contêiner Python descartável]
-    D --> J[Contêiner Java descartável]
-    P --> O[stdout e stderr limitados]
-    J --> O
+flowchart LR
+    U[Navegador] --> F[Site estático Flet<br/>Vercel]
+    F -->|HTTPS + JWT| A[coderank-api<br/>Cloudflare Worker]
+    A -->|Auth, REST, RPC| S[(Supabase<br/>Auth + Postgres)]
+    A -->|service binding| J[coderank-judge<br/>Python Worker]
 ```
 
-O executor aplica, entre outros controles:
+- **Frontend** (`src/`, `main.py`): Flet compilado como site estático (`flet build web`, configurado em `vercel.json`).
+- **API** (`api/`): Cloudflare Worker em JavaScript. Cuida de cadastro/login (via Supabase Auth), desafios, submissões, ranking, perfil e grupos. Verifica o JWT do usuário em cada rota protegida.
+- **Judge** (`judge/`): Python Worker que executa o código das submissões, um teste por chamada. Não tem segredos nem rota pública; só a API o chama.
+- **Banco** (`schema.sql`): Supabase com RLS. Os casos de teste ocultos só são lidos pela API, por funções protegidas por segredo compartilhado. Pontos são concedidos apenas na primeira solução aceita de cada desafio.
 
-- Rede desabilitada.
-- Usuário não privilegiado e remoção de capabilities.
-- Sistema de arquivos somente leitura, com `/tmp` temporário limitado.
-- Limites de memória, CPU, processos e descritores.
-- Timeout de execução e remoção forçada do contêiner.
-- Limite de tamanho do código e coleta limitada da saída.
+### Limites conhecidos
 
-Essas proteções reduzem a superfície de ataque, mas não substituem uma revisão de segurança independente antes de executar código de terceiros em produção.
+- A execução na web é **somente Python**. Java continua disponível apenas no executor Docker local (`src/services/code_runner.py`).
+- No plano **Free** da Cloudflare cada execução tem 10 ms de CPU: solução pesada pode ser cortada como "tempo excedido". No plano pago, defina `TRACE=1` no judge para ligar o limite de 2 s por teste.
+- O cadastro envia e-mail de confirmação (configuração padrão do Supabase Auth).
+- A sessão é guardada no `localStorage` do navegador.
+
+## Deploy
+
+1. **Supabase**: rode `schema.sql`, insira o segredo (`private.worker_secret`) e carregue os desafios/casos de teste.
+2. **Cloudflare**: `cd judge && npx wrangler deploy`; depois `cd api && npx wrangler secret put WORKER_SECRET && npx wrangler deploy`.
+3. **Vercel**: importe o repositório; o `vercel.json` já define o build do site Flet.
+4. Se a URL da API mudar, ajuste `CODERANK_API_URL` em `src/services/api.py`.
+
+## Executor Docker local (opcional)
+
+O repositório mantém o executor local com Docker (Python e Java), útil para desenvolvimento offline. A interface web usa o judge da Cloudflare.
 
 ## Pré-requisitos
 
@@ -91,6 +86,8 @@ Os testes unitários não precisam de Docker:
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+Testes da API e do judge: `cd api && npm test` (Node 22 + Python 3).
 
 A integração contínua também verifica a compilação dos módulos Python e constrói/testa as imagens Python e Java em um runner Linux com Docker.
 

@@ -1,5 +1,6 @@
 import flet as ft
 
+from src import state
 from src.ui.components.navbar import criar_navbar
 from src.ui.views.cadastro import tela_cadastro
 from src.ui.views.desafios import tela_desafios
@@ -23,6 +24,9 @@ ROTAS_VALIDAS = {
 }
 
 
+ROTAS_PUBLICAS = {"login", "cadastro"}
+
+
 def main_ui(page: ft.Page):
     page.title = "CodeRank"
     page.theme_mode = ft.ThemeMode.DARK
@@ -35,6 +39,9 @@ def main_ui(page: ft.Page):
             rota = "lobby_grupos"
         if rota not in ROTAS_VALIDAS:
             rota = "login"
+        # Telas internas exigem sessão iniciada.
+        if rota not in ROTAS_PUBLICAS and not state.session.logged_in:
+            rota = "login"
 
         if rota == "login":
             page.appbar = None
@@ -46,7 +53,7 @@ def main_ui(page: ft.Page):
             page.appbar = barra_navegacao
             telas = {
                 "desafios": lambda: tela_desafios(page, navegar),
-                "editor": lambda: tela_editor(page),
+                "editor": lambda: tela_editor(page, navegar),
                 "lobby_grupos": lambda: tela_grupos(page, navegar),
                 "grupo": lambda: tela_grupo(page, navegar),
                 "ranking": lambda: tela_ranking(page, navegar),
@@ -60,4 +67,5 @@ def main_ui(page: ft.Page):
 
     page.clean()
     page.add(conteudo_principal)
-    navegar("login")
+    # Retoma a sessão salva no navegador (se houver); token vencido cai no login.
+    navegar("desafios" if state.load_session() else "login")

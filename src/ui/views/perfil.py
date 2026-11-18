@@ -1,155 +1,157 @@
 import flet as ft
 
+from src import state
+from src.services import api
+from src.ui.helpers import botao, cartao, carregando, mensagem_erro, sessao_expirada
+
+STATUS = {
+    "accepted": ("Aceito", ft.Colors.GREEN_400, ft.Icons.CHECK_CIRCLE),
+    "wrong_answer": ("Resposta incorreta", ft.Colors.RED_400, ft.Icons.CANCEL),
+    "runtime_error": ("Erro de execução", ft.Colors.RED_400, ft.Icons.CANCEL),
+    "timeout": ("Tempo excedido", ft.Colors.ORANGE_400, ft.Icons.TIMER_OFF),
+    "error": ("Erro", ft.Colors.RED_400, ft.Icons.CANCEL),
+}
+
+
 def tela_perfil(page: ft.Page, navegar):
-    # Simulando variáveis iniciais
-    cidade_usuario = "Cidade de Exemplo"
-    uf_usuario = "UF"
-    nome_usuario = "Usuário de Demonstração"
-    curso_usuario = "Curso de Exemplo"
-    faculdade = "Instituição de Exemplo"
+    texto_nome = ft.Text("", size=24, weight=ft.FontWeight.BOLD)
+    texto_usuario = ft.Text("", color=ft.Colors.GREY_400, size=16)
+    texto_local = ft.Text("", color=ft.Colors.GREY_400, size=16)
+    texto_bio = ft.Text("", color=ft.Colors.GREY_300, size=14)
+    estatisticas = ft.Row([carregando()], alignment=ft.MainAxisAlignment.CENTER)
+    historico = ft.Column([], scroll=ft.ScrollMode.AUTO, height=240)
 
-    # --- 1. Elementos de Texto Dinâmicos ---
-    # Precisamos separá-los em variáveis para poder alterar o .value depois
-    texto_nome = ft.Text(nome_usuario, size=24, weight=ft.FontWeight.BOLD)
-    texto_curso = ft.Text(f"{curso_usuario} | {faculdade}", color=ft.Colors.GREY_400, size=16)
-    texto_localizacao = ft.Text(f"{cidade_usuario} - {uf_usuario}", color=ft.Colors.GREY_400, size=16)
+    input_nome = ft.TextField(label="Nome de exibição", width=320, max_length=40)
+    input_cidade = ft.TextField(label="Cidade", width=320, max_length=60)
+    input_bio = ft.TextField(label="Bio", width=320, multiline=True, max_length=200)
+    erro_modal = ft.Text("", color=ft.Colors.RED_300)
 
-    # --- 2. Lógica do Modal de Edição ---
-    input_nome = ft.TextField(label="Nome Completo", value=nome_usuario, width=320)
-    input_cidade = ft.TextField(label="Cidade", value=cidade_usuario, width=155)
-    input_uf = ft.TextField(label="UF", value=uf_usuario, width=155)
-    
-    def fechar_modal_edicao(e):
-        modal_editar_perfil.open = False
-        page.update()
-
-    def salvar_perfil(e):
-        # Atualiza os textos na interface com os novos valores digitados
-        texto_nome.value = input_nome.value
-        texto_localizacao.value = f"{input_cidade.value} - {input_uf.value}"
-        
-        # Aqui você faria o UPDATE no Supabase
-        
-        modal_editar_perfil.open = False
-        page.update()
-
-    modal_editar_perfil = ft.AlertDialog(
-        title=ft.Text("Editar Perfil", weight=ft.FontWeight.BOLD),
-        content=ft.Column([
-            input_nome,
-            ft.Row([input_cidade, input_uf], spacing=10)
-        ], tight=True),
-        actions=[
-            ft.TextButton("Cancelar", on_click=fechar_modal_edicao),
-            ft.Container(
-                content=ft.Text("Salvar Alterações", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
-                on_click=salvar_perfil, 
-                bgcolor=ft.Colors.BLUE_700,
-                padding=10,
-                border_radius=5,
-                ink=True
-            )
-        ],
-        actions_alignment=ft.MainAxisAlignment.END,
-        shape=ft.RoundedRectangleBorder(radius=8)
-    )
-
-    def abrir_modal_edicao(e):
-        if modal_editar_perfil not in page.overlay:
-            page.overlay.append(modal_editar_perfil)
-        modal_editar_perfil.open = True
-        page.update()
-
-    # Botão de editar que ficará ao lado do nome
-    botao_editar = ft.IconButton(
-        icon=ft.Icons.EDIT, 
-        icon_color=ft.Colors.BLUE_400, 
-        tooltip="Editar Perfil",
-        on_click=abrir_modal_edicao
-    )
-
-    # --- 3. Histórico de Desafios ---
-    def criar_card_historico(nome_desafio, data, status, linguagem="Python"):
-        cor_status = ft.Colors.GREEN_400 if status == "Aceito" else ft.Colors.RED_400
-        icone_status = ft.Icons.CHECK_CIRCLE if status == "Aceito" else ft.Icons.CANCEL
-        
-        return ft.Container(
-            content=ft.Row([
-                ft.Column([
-                    ft.Text(nome_desafio, weight=ft.FontWeight.BOLD, size=16),
-                    ft.Text(f"{data} • {linguagem}", color=ft.Colors.GREY_400, size=12),
-                ], spacing=2),
-                ft.Row([
-                    ft.Text(status, color=cor_status, weight=ft.FontWeight.BOLD),
-                    ft.Icon(icone_status, color=cor_status, size=20)
-                ], spacing=5)
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            padding=15,
-            bgcolor=ft.Colors.GREY_900,
-            border_radius=8,
-            border=ft.Border.all(1, ft.Colors.OUTLINE),
-            margin=ft.Margin.only(bottom=10)
+    def estat(valor, rotulo):
+        return ft.Column(
+            [ft.Text(str(valor), size=24, weight=ft.FontWeight.BOLD), ft.Text(rotulo, color=ft.Colors.GREY_400)],
+            alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         )
 
-    # Lista rolável do histórico
-    lista_historico = ft.Column([
-        criar_card_historico("Soma simples", "Data ilustrativa", "Aceito"),
-        criar_card_historico("Validador de exemplo", "Data ilustrativa", "Erro (Tempo)"),
-        criar_card_historico("Exemplo Java", "Data ilustrativa", "Erro (Sintaxe)", "Java"),
-    ], scroll=ft.ScrollMode.AUTO, height=220) # A altura fixa garante que o perfil não "estoure" a tela
+    def preencher(perfil: dict):
+        texto_nome.value = perfil.get("display_name") or perfil["username"]
+        texto_usuario.value = f"@{perfil['username']}"
+        texto_local.value = perfil.get("cidade") or "Cidade não informada"
+        texto_bio.value = perfil.get("bio") or ""
+        input_nome.value = perfil.get("display_name") or perfil["username"]
+        input_cidade.value = perfil.get("cidade") or ""
+        input_bio.value = perfil.get("bio") or ""
 
-    # --- 4. Estatísticas e Botão Sair ---
-    linha_estatisticas = ft.Row([
-        ft.Column([ft.Text("1100", size=24, weight=ft.FontWeight.BOLD), ft.Text("Pontos", color=ft.Colors.GREY_400)], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-        ft.VerticalDivider(width=40, color=ft.Colors.OUTLINE),
-        ft.Column([ft.Text("15", size=24, weight=ft.FontWeight.BOLD), ft.Text("Desafios", color=ft.Colors.GREY_400)], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-        ft.VerticalDivider(width=40, color=ft.Colors.OUTLINE),
-        ft.Column([ft.Text("Python", size=24, weight=ft.FontWeight.BOLD), ft.Text("Linguagem", color=ft.Colors.GREY_400)], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-    ], alignment=ft.MainAxisAlignment.CENTER)
-    
-    def deslogar(e):
-        navegar("login")
+    def card_historico(s: dict):
+        rotulo, cor, icone = STATUS.get(s["status"], (s["status"], ft.Colors.GREY_400, ft.Icons.HELP))
+        titulo = (s.get("problems") or {}).get("title", "Desafio")
+        data = str(s.get("created_at", ""))[:16].replace("T", " ")
+        return cartao(
+            ft.Row([
+                ft.Column([
+                    ft.Text(titulo, weight=ft.FontWeight.BOLD, size=16),
+                    ft.Text(f"{data} • Python • {s['passed']}/{s['total']} testes", color=ft.Colors.GREY_400, size=12),
+                ], spacing=2),
+                ft.Row([ft.Text(rotulo, color=cor, weight=ft.FontWeight.BOLD), ft.Icon(icone, color=cor, size=20)], spacing=5),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+        )
 
-    botao_sair = ft.Container(
-        content=ft.Row([ft.Icon(ft.Icons.LOGOUT, color=ft.Colors.WHITE, size=18), ft.Text("Terminar Sessão", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD)], spacing=5),
-        bgcolor=ft.Colors.RED_700,
-        padding=10,
-        border_radius=5,
-        ink=True,
-        on_click=deslogar
+    async def carregar():
+        try:
+            dados = await api.get("/me")
+        except Exception as exc:  # noqa: BLE001
+            if sessao_expirada(exc, navegar):
+                return
+            estatisticas.controls = [ft.Text(mensagem_erro(exc), color=ft.Colors.RED_300)]
+            page.update()
+            return
+        state.session.profile = dados["profile"]
+        state.save_session()
+        preencher(dados["profile"])
+        st = dados.get("stats", {})
+        estatisticas.controls = [
+            estat(dados["profile"]["points"], "Pontos"),
+            ft.VerticalDivider(width=40, color=ft.Colors.OUTLINE),
+            estat(st.get("solved", 0), "Resolvidos"),
+            ft.VerticalDivider(width=40, color=ft.Colors.OUTLINE),
+            estat(f"#{st.get('rank', '-')}", "Ranking"),
+        ]
+        historico.controls = [card_historico(s) for s in dados.get("submissions", [])] or [
+            ft.Text("Nenhuma submissão ainda. Resolva seu primeiro desafio!", color=ft.Colors.GREY_400)
+        ]
+        page.update()
+
+    def fechar_modal(e):
+        modal.open = False
+        page.update()
+
+    async def salvar():
+        erro_modal.value = ""
+        try:
+            r = await api.patch("/me", {
+                "display_name": input_nome.value or "",
+                "cidade": input_cidade.value or "",
+                "bio": input_bio.value or "",
+            })
+        except Exception as exc:  # noqa: BLE001
+            if sessao_expirada(exc, navegar):
+                return
+            erro_modal.value = mensagem_erro(exc)
+            page.update()
+            return
+        state.session.profile = r["profile"]
+        state.save_session()
+        preencher(r["profile"])
+        modal.open = False
+        page.update()
+
+    modal = ft.AlertDialog(
+        title=ft.Text("Editar perfil", weight=ft.FontWeight.BOLD),
+        content=ft.Column([input_nome, input_cidade, input_bio, erro_modal], tight=True),
+        actions=[
+            ft.TextButton("Cancelar", on_click=fechar_modal),
+            botao("Salvar alterações", lambda e: page.run_task(salvar)),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+        shape=ft.RoundedRectangleBorder(radius=8),
     )
 
-    # --- 5. Montagem Final da Tela ---
+    def abrir_modal(e):
+        if modal not in page.overlay:
+            page.overlay.append(modal)
+        modal.open = True
+        page.update()
+
+    async def sair():
+        await api.logout()
+        navegar("login")
+
+    page.run_task(carregar)
+
     return ft.Container(
         content=ft.Column([
-            ft.Text("Perfil — demonstração", size=28, weight=ft.FontWeight.BOLD),
+            ft.Text("Meu perfil", size=28, weight=ft.FontWeight.BOLD),
             ft.Divider(height=20, color=ft.Colors.TRANSPARENT),
-            
-            # Cabeçalho do Perfil (agora com o botão de editar ao lado do nome)
             ft.Row([
-                ft.CircleAvatar(
-                    content=ft.Icon(ft.Icons.PERSON, size=40),
-                    radius=40,
-                    bgcolor=ft.Colors.BLUE_700
-                ),
+                ft.CircleAvatar(content=ft.Icon(ft.Icons.PERSON, size=40), radius=40, bgcolor=ft.Colors.BLUE_700),
                 ft.Column([
-                    ft.Row([texto_nome, botao_editar], spacing=5, alignment=ft.MainAxisAlignment.START),
-                    texto_curso,
-                    texto_localizacao,
-                ], spacing=2)
-            ], spacing=20, alignment=ft.MainAxisAlignment.START),
-            
+                    ft.Row([
+                        texto_nome,
+                        ft.IconButton(icon=ft.Icons.EDIT, icon_color=ft.Colors.BLUE_400, tooltip="Editar perfil", on_click=abrir_modal),
+                    ], spacing=5),
+                    texto_usuario,
+                    texto_local,
+                    texto_bio,
+                ], spacing=2),
+            ], spacing=20),
             ft.Divider(height=30, color=ft.Colors.OUTLINE),
-            linha_estatisticas,
+            estatisticas,
             ft.Divider(height=30, color=ft.Colors.OUTLINE),
-            
-            # Nova seção de histórico
-            ft.Text("Histórico de Submissões", size=20, weight=ft.FontWeight.BOLD),
-            lista_historico,
-            
+            ft.Text("Histórico de submissões", size=20, weight=ft.FontWeight.BOLD),
+            historico,
             ft.Divider(height=10, color=ft.Colors.TRANSPARENT),
-            ft.Row([botao_sair], alignment=ft.MainAxisAlignment.START)
-        ]),
+            ft.Row([botao("Terminar sessão", lambda e: page.run_task(sair), ft.Colors.RED_700, ft.Icons.LOGOUT)]),
+        ], scroll=ft.ScrollMode.AUTO),
         padding=20,
-        expand=True
+        expand=True,
     )
